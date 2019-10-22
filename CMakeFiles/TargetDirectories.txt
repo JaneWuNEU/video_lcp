@@ -1,0 +1,6 @@
+/home/ramon/Desktop/Thesis/CMakeFiles/rebuild_cache.dir
+/home/ramon/Desktop/Thesis/CMakeFiles/Client.dir
+/home/ramon/Desktop/Thesis/CMakeFiles/edit_cache.dir
+/home/ramon/Desktop/Thesis/CMakeFiles/Server.dir
+/home/ramon/Desktop/Thesis/CMakeFiles/Detection.dir
+/home/ramon/Desktop/Thesis/CMakeFiles/DetectionShort.dir
