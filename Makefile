@@ -111,30 +111,30 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named Client
+# Target rules for targets named A_Client
 
 # Build rule for target.
-Client: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 Client
-.PHONY : Client
+A_Client: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 A_Client
+.PHONY : A_Client
 
 # fast build rule for target.
-Client/fast:
-	$(MAKE) -f CMakeFiles/Client.dir/build.make CMakeFiles/Client.dir/build
-.PHONY : Client/fast
+A_Client/fast:
+	$(MAKE) -f CMakeFiles/A_Client.dir/build.make CMakeFiles/A_Client.dir/build
+.PHONY : A_Client/fast
 
 #=============================================================================
-# Target rules for targets named Server
+# Target rules for targets named DetectionShort
 
 # Build rule for target.
-Server: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 Server
-.PHONY : Server
+DetectionShort: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 DetectionShort
+.PHONY : DetectionShort
 
 # fast build rule for target.
-Server/fast:
-	$(MAKE) -f CMakeFiles/Server.dir/build.make CMakeFiles/Server.dir/build
-.PHONY : Server/fast
+DetectionShort/fast:
+	$(MAKE) -f CMakeFiles/DetectionShort.dir/build.make CMakeFiles/DetectionShort.dir/build
+.PHONY : DetectionShort/fast
 
 #=============================================================================
 # Target rules for targets named Detection
@@ -150,125 +150,325 @@ Detection/fast:
 .PHONY : Detection/fast
 
 #=============================================================================
-# Target rules for targets named DetectionShort
+# Target rules for targets named T_Client
 
 # Build rule for target.
-DetectionShort: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 DetectionShort
-.PHONY : DetectionShort
+T_Client: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 T_Client
+.PHONY : T_Client
 
 # fast build rule for target.
-DetectionShort/fast:
-	$(MAKE) -f CMakeFiles/DetectionShort.dir/build.make CMakeFiles/DetectionShort.dir/build
-.PHONY : DetectionShort/fast
+T_Client/fast:
+	$(MAKE) -f CMakeFiles/T_Client.dir/build.make CMakeFiles/T_Client.dir/build
+.PHONY : T_Client/fast
 
-client.o: client.cpp.o
+#=============================================================================
+# Target rules for targets named S_Client
 
-.PHONY : client.o
+# Build rule for target.
+S_Client: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 S_Client
+.PHONY : S_Client
 
-# target to build an object file
-client.cpp.o:
-	$(MAKE) -f CMakeFiles/Client.dir/build.make CMakeFiles/Client.dir/client.cpp.o
-.PHONY : client.cpp.o
+# fast build rule for target.
+S_Client/fast:
+	$(MAKE) -f CMakeFiles/S_Client.dir/build.make CMakeFiles/S_Client.dir/build
+.PHONY : S_Client/fast
 
-client.i: client.cpp.i
+#=============================================================================
+# Target rules for targets named A_Server2
 
-.PHONY : client.i
+# Build rule for target.
+A_Server2: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 A_Server2
+.PHONY : A_Server2
 
-# target to preprocess a source file
-client.cpp.i:
-	$(MAKE) -f CMakeFiles/Client.dir/build.make CMakeFiles/Client.dir/client.cpp.i
-.PHONY : client.cpp.i
+# fast build rule for target.
+A_Server2/fast:
+	$(MAKE) -f CMakeFiles/A_Server2.dir/build.make CMakeFiles/A_Server2.dir/build
+.PHONY : A_Server2/fast
 
-client.s: client.cpp.s
+#=============================================================================
+# Target rules for targets named T_Server
 
-.PHONY : client.s
+# Build rule for target.
+T_Server: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 T_Server
+.PHONY : T_Server
 
-# target to generate assembly for a file
-client.cpp.s:
-	$(MAKE) -f CMakeFiles/Client.dir/build.make CMakeFiles/Client.dir/client.cpp.s
-.PHONY : client.cpp.s
+# fast build rule for target.
+T_Server/fast:
+	$(MAKE) -f CMakeFiles/T_Server.dir/build.make CMakeFiles/T_Server.dir/build
+.PHONY : T_Server/fast
 
-detection.o: detection.cpp.o
+#=============================================================================
+# Target rules for targets named S_Server
 
-.PHONY : detection.o
+# Build rule for target.
+S_Server: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 S_Server
+.PHONY : S_Server
 
-# target to build an object file
-detection.cpp.o:
-	$(MAKE) -f CMakeFiles/Detection.dir/build.make CMakeFiles/Detection.dir/detection.cpp.o
-.PHONY : detection.cpp.o
+# fast build rule for target.
+S_Server/fast:
+	$(MAKE) -f CMakeFiles/S_Server.dir/build.make CMakeFiles/S_Server.dir/build
+.PHONY : S_Server/fast
 
-detection.i: detection.cpp.i
+#=============================================================================
+# Target rules for targets named A_Server
 
-.PHONY : detection.i
+# Build rule for target.
+A_Server: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 A_Server
+.PHONY : A_Server
 
-# target to preprocess a source file
-detection.cpp.i:
-	$(MAKE) -f CMakeFiles/Detection.dir/build.make CMakeFiles/Detection.dir/detection.cpp.i
-.PHONY : detection.cpp.i
+# fast build rule for target.
+A_Server/fast:
+	$(MAKE) -f CMakeFiles/A_Server.dir/build.make CMakeFiles/A_Server.dir/build
+.PHONY : A_Server/fast
 
-detection.s: detection.cpp.s
+ASynchronous/client.o: ASynchronous/client.cpp.o
 
-.PHONY : detection.s
-
-# target to generate assembly for a file
-detection.cpp.s:
-	$(MAKE) -f CMakeFiles/Detection.dir/build.make CMakeFiles/Detection.dir/detection.cpp.s
-.PHONY : detection.cpp.s
-
-detectionShort.o: detectionShort.cpp.o
-
-.PHONY : detectionShort.o
-
-# target to build an object file
-detectionShort.cpp.o:
-	$(MAKE) -f CMakeFiles/DetectionShort.dir/build.make CMakeFiles/DetectionShort.dir/detectionShort.cpp.o
-.PHONY : detectionShort.cpp.o
-
-detectionShort.i: detectionShort.cpp.i
-
-.PHONY : detectionShort.i
-
-# target to preprocess a source file
-detectionShort.cpp.i:
-	$(MAKE) -f CMakeFiles/DetectionShort.dir/build.make CMakeFiles/DetectionShort.dir/detectionShort.cpp.i
-.PHONY : detectionShort.cpp.i
-
-detectionShort.s: detectionShort.cpp.s
-
-.PHONY : detectionShort.s
-
-# target to generate assembly for a file
-detectionShort.cpp.s:
-	$(MAKE) -f CMakeFiles/DetectionShort.dir/build.make CMakeFiles/DetectionShort.dir/detectionShort.cpp.s
-.PHONY : detectionShort.cpp.s
-
-server.o: server.cpp.o
-
-.PHONY : server.o
+.PHONY : ASynchronous/client.o
 
 # target to build an object file
-server.cpp.o:
-	$(MAKE) -f CMakeFiles/Server.dir/build.make CMakeFiles/Server.dir/server.cpp.o
-.PHONY : server.cpp.o
+ASynchronous/client.cpp.o:
+	$(MAKE) -f CMakeFiles/A_Client.dir/build.make CMakeFiles/A_Client.dir/ASynchronous/client.cpp.o
+.PHONY : ASynchronous/client.cpp.o
 
-server.i: server.cpp.i
+ASynchronous/client.i: ASynchronous/client.cpp.i
 
-.PHONY : server.i
+.PHONY : ASynchronous/client.i
 
 # target to preprocess a source file
-server.cpp.i:
-	$(MAKE) -f CMakeFiles/Server.dir/build.make CMakeFiles/Server.dir/server.cpp.i
-.PHONY : server.cpp.i
+ASynchronous/client.cpp.i:
+	$(MAKE) -f CMakeFiles/A_Client.dir/build.make CMakeFiles/A_Client.dir/ASynchronous/client.cpp.i
+.PHONY : ASynchronous/client.cpp.i
 
-server.s: server.cpp.s
+ASynchronous/client.s: ASynchronous/client.cpp.s
 
-.PHONY : server.s
+.PHONY : ASynchronous/client.s
 
 # target to generate assembly for a file
-server.cpp.s:
-	$(MAKE) -f CMakeFiles/Server.dir/build.make CMakeFiles/Server.dir/server.cpp.s
-.PHONY : server.cpp.s
+ASynchronous/client.cpp.s:
+	$(MAKE) -f CMakeFiles/A_Client.dir/build.make CMakeFiles/A_Client.dir/ASynchronous/client.cpp.s
+.PHONY : ASynchronous/client.cpp.s
+
+ASynchronous/server.o: ASynchronous/server.cpp.o
+
+.PHONY : ASynchronous/server.o
+
+# target to build an object file
+ASynchronous/server.cpp.o:
+	$(MAKE) -f CMakeFiles/A_Server.dir/build.make CMakeFiles/A_Server.dir/ASynchronous/server.cpp.o
+.PHONY : ASynchronous/server.cpp.o
+
+ASynchronous/server.i: ASynchronous/server.cpp.i
+
+.PHONY : ASynchronous/server.i
+
+# target to preprocess a source file
+ASynchronous/server.cpp.i:
+	$(MAKE) -f CMakeFiles/A_Server.dir/build.make CMakeFiles/A_Server.dir/ASynchronous/server.cpp.i
+.PHONY : ASynchronous/server.cpp.i
+
+ASynchronous/server.s: ASynchronous/server.cpp.s
+
+.PHONY : ASynchronous/server.s
+
+# target to generate assembly for a file
+ASynchronous/server.cpp.s:
+	$(MAKE) -f CMakeFiles/A_Server.dir/build.make CMakeFiles/A_Server.dir/ASynchronous/server.cpp.s
+.PHONY : ASynchronous/server.cpp.s
+
+ASynchronous/server2.o: ASynchronous/server2.cpp.o
+
+.PHONY : ASynchronous/server2.o
+
+# target to build an object file
+ASynchronous/server2.cpp.o:
+	$(MAKE) -f CMakeFiles/A_Server2.dir/build.make CMakeFiles/A_Server2.dir/ASynchronous/server2.cpp.o
+.PHONY : ASynchronous/server2.cpp.o
+
+ASynchronous/server2.i: ASynchronous/server2.cpp.i
+
+.PHONY : ASynchronous/server2.i
+
+# target to preprocess a source file
+ASynchronous/server2.cpp.i:
+	$(MAKE) -f CMakeFiles/A_Server2.dir/build.make CMakeFiles/A_Server2.dir/ASynchronous/server2.cpp.i
+.PHONY : ASynchronous/server2.cpp.i
+
+ASynchronous/server2.s: ASynchronous/server2.cpp.s
+
+.PHONY : ASynchronous/server2.s
+
+# target to generate assembly for a file
+ASynchronous/server2.cpp.s:
+	$(MAKE) -f CMakeFiles/A_Server2.dir/build.make CMakeFiles/A_Server2.dir/ASynchronous/server2.cpp.s
+.PHONY : ASynchronous/server2.cpp.s
+
+SimpleDetection/detection.o: SimpleDetection/detection.cpp.o
+
+.PHONY : SimpleDetection/detection.o
+
+# target to build an object file
+SimpleDetection/detection.cpp.o:
+	$(MAKE) -f CMakeFiles/Detection.dir/build.make CMakeFiles/Detection.dir/SimpleDetection/detection.cpp.o
+.PHONY : SimpleDetection/detection.cpp.o
+
+SimpleDetection/detection.i: SimpleDetection/detection.cpp.i
+
+.PHONY : SimpleDetection/detection.i
+
+# target to preprocess a source file
+SimpleDetection/detection.cpp.i:
+	$(MAKE) -f CMakeFiles/Detection.dir/build.make CMakeFiles/Detection.dir/SimpleDetection/detection.cpp.i
+.PHONY : SimpleDetection/detection.cpp.i
+
+SimpleDetection/detection.s: SimpleDetection/detection.cpp.s
+
+.PHONY : SimpleDetection/detection.s
+
+# target to generate assembly for a file
+SimpleDetection/detection.cpp.s:
+	$(MAKE) -f CMakeFiles/Detection.dir/build.make CMakeFiles/Detection.dir/SimpleDetection/detection.cpp.s
+.PHONY : SimpleDetection/detection.cpp.s
+
+SimpleDetection/detectionShort.o: SimpleDetection/detectionShort.cpp.o
+
+.PHONY : SimpleDetection/detectionShort.o
+
+# target to build an object file
+SimpleDetection/detectionShort.cpp.o:
+	$(MAKE) -f CMakeFiles/DetectionShort.dir/build.make CMakeFiles/DetectionShort.dir/SimpleDetection/detectionShort.cpp.o
+.PHONY : SimpleDetection/detectionShort.cpp.o
+
+SimpleDetection/detectionShort.i: SimpleDetection/detectionShort.cpp.i
+
+.PHONY : SimpleDetection/detectionShort.i
+
+# target to preprocess a source file
+SimpleDetection/detectionShort.cpp.i:
+	$(MAKE) -f CMakeFiles/DetectionShort.dir/build.make CMakeFiles/DetectionShort.dir/SimpleDetection/detectionShort.cpp.i
+.PHONY : SimpleDetection/detectionShort.cpp.i
+
+SimpleDetection/detectionShort.s: SimpleDetection/detectionShort.cpp.s
+
+.PHONY : SimpleDetection/detectionShort.s
+
+# target to generate assembly for a file
+SimpleDetection/detectionShort.cpp.s:
+	$(MAKE) -f CMakeFiles/DetectionShort.dir/build.make CMakeFiles/DetectionShort.dir/SimpleDetection/detectionShort.cpp.s
+.PHONY : SimpleDetection/detectionShort.cpp.s
+
+Synchronous/client.o: Synchronous/client.cpp.o
+
+.PHONY : Synchronous/client.o
+
+# target to build an object file
+Synchronous/client.cpp.o:
+	$(MAKE) -f CMakeFiles/S_Client.dir/build.make CMakeFiles/S_Client.dir/Synchronous/client.cpp.o
+.PHONY : Synchronous/client.cpp.o
+
+Synchronous/client.i: Synchronous/client.cpp.i
+
+.PHONY : Synchronous/client.i
+
+# target to preprocess a source file
+Synchronous/client.cpp.i:
+	$(MAKE) -f CMakeFiles/S_Client.dir/build.make CMakeFiles/S_Client.dir/Synchronous/client.cpp.i
+.PHONY : Synchronous/client.cpp.i
+
+Synchronous/client.s: Synchronous/client.cpp.s
+
+.PHONY : Synchronous/client.s
+
+# target to generate assembly for a file
+Synchronous/client.cpp.s:
+	$(MAKE) -f CMakeFiles/S_Client.dir/build.make CMakeFiles/S_Client.dir/Synchronous/client.cpp.s
+.PHONY : Synchronous/client.cpp.s
+
+Synchronous/server.o: Synchronous/server.cpp.o
+
+.PHONY : Synchronous/server.o
+
+# target to build an object file
+Synchronous/server.cpp.o:
+	$(MAKE) -f CMakeFiles/S_Server.dir/build.make CMakeFiles/S_Server.dir/Synchronous/server.cpp.o
+.PHONY : Synchronous/server.cpp.o
+
+Synchronous/server.i: Synchronous/server.cpp.i
+
+.PHONY : Synchronous/server.i
+
+# target to preprocess a source file
+Synchronous/server.cpp.i:
+	$(MAKE) -f CMakeFiles/S_Server.dir/build.make CMakeFiles/S_Server.dir/Synchronous/server.cpp.i
+.PHONY : Synchronous/server.cpp.i
+
+Synchronous/server.s: Synchronous/server.cpp.s
+
+.PHONY : Synchronous/server.s
+
+# target to generate assembly for a file
+Synchronous/server.cpp.s:
+	$(MAKE) -f CMakeFiles/S_Server.dir/build.make CMakeFiles/S_Server.dir/Synchronous/server.cpp.s
+.PHONY : Synchronous/server.cpp.s
+
+test/client.o: test/client.cpp.o
+
+.PHONY : test/client.o
+
+# target to build an object file
+test/client.cpp.o:
+	$(MAKE) -f CMakeFiles/T_Client.dir/build.make CMakeFiles/T_Client.dir/test/client.cpp.o
+.PHONY : test/client.cpp.o
+
+test/client.i: test/client.cpp.i
+
+.PHONY : test/client.i
+
+# target to preprocess a source file
+test/client.cpp.i:
+	$(MAKE) -f CMakeFiles/T_Client.dir/build.make CMakeFiles/T_Client.dir/test/client.cpp.i
+.PHONY : test/client.cpp.i
+
+test/client.s: test/client.cpp.s
+
+.PHONY : test/client.s
+
+# target to generate assembly for a file
+test/client.cpp.s:
+	$(MAKE) -f CMakeFiles/T_Client.dir/build.make CMakeFiles/T_Client.dir/test/client.cpp.s
+.PHONY : test/client.cpp.s
+
+test/server.o: test/server.cpp.o
+
+.PHONY : test/server.o
+
+# target to build an object file
+test/server.cpp.o:
+	$(MAKE) -f CMakeFiles/T_Server.dir/build.make CMakeFiles/T_Server.dir/test/server.cpp.o
+.PHONY : test/server.cpp.o
+
+test/server.i: test/server.cpp.i
+
+.PHONY : test/server.i
+
+# target to preprocess a source file
+test/server.cpp.i:
+	$(MAKE) -f CMakeFiles/T_Server.dir/build.make CMakeFiles/T_Server.dir/test/server.cpp.i
+.PHONY : test/server.cpp.i
+
+test/server.s: test/server.cpp.s
+
+.PHONY : test/server.s
+
+# target to generate assembly for a file
+test/server.cpp.s:
+	$(MAKE) -f CMakeFiles/T_Server.dir/build.make CMakeFiles/T_Server.dir/test/server.cpp.s
+.PHONY : test/server.cpp.s
 
 # Help Target
 help:
@@ -277,23 +477,43 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... rebuild_cache"
-	@echo "... Client"
-	@echo "... edit_cache"
-	@echo "... Server"
-	@echo "... Detection"
+	@echo "... A_Client"
 	@echo "... DetectionShort"
-	@echo "... client.o"
-	@echo "... client.i"
-	@echo "... client.s"
-	@echo "... detection.o"
-	@echo "... detection.i"
-	@echo "... detection.s"
-	@echo "... detectionShort.o"
-	@echo "... detectionShort.i"
-	@echo "... detectionShort.s"
-	@echo "... server.o"
-	@echo "... server.i"
-	@echo "... server.s"
+	@echo "... Detection"
+	@echo "... T_Client"
+	@echo "... S_Client"
+	@echo "... edit_cache"
+	@echo "... A_Server2"
+	@echo "... T_Server"
+	@echo "... S_Server"
+	@echo "... A_Server"
+	@echo "... ASynchronous/client.o"
+	@echo "... ASynchronous/client.i"
+	@echo "... ASynchronous/client.s"
+	@echo "... ASynchronous/server.o"
+	@echo "... ASynchronous/server.i"
+	@echo "... ASynchronous/server.s"
+	@echo "... ASynchronous/server2.o"
+	@echo "... ASynchronous/server2.i"
+	@echo "... ASynchronous/server2.s"
+	@echo "... SimpleDetection/detection.o"
+	@echo "... SimpleDetection/detection.i"
+	@echo "... SimpleDetection/detection.s"
+	@echo "... SimpleDetection/detectionShort.o"
+	@echo "... SimpleDetection/detectionShort.i"
+	@echo "... SimpleDetection/detectionShort.s"
+	@echo "... Synchronous/client.o"
+	@echo "... Synchronous/client.i"
+	@echo "... Synchronous/client.s"
+	@echo "... Synchronous/server.o"
+	@echo "... Synchronous/server.i"
+	@echo "... Synchronous/server.s"
+	@echo "... test/client.o"
+	@echo "... test/client.i"
+	@echo "... test/client.s"
+	@echo "... test/server.o"
+	@echo "... test/server.i"
+	@echo "... test/server.s"
 .PHONY : help
 
 
