@@ -31,6 +31,7 @@ std::vector<string> classes;
 std::vector<Mat> bufferFrames;
 pthread_mutex_t bufferMutex;
 pthread_cond_t bufferCond;
+//pthread_barrier_t threadBarrier;
 
 float confThreshold = 0.5; // Confidence threshold
 float nmsThreshold = 0.3;  // Non-maximum suppression threshold
@@ -122,7 +123,7 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(sockfd < 0){
-		printf("failed to open socket.\n");
+		perror("failed to open socket.\n");
 		close(sockfd);
 		exit(1);
 	}
@@ -133,14 +134,14 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 
 	err = bind(sockfd, (struct sockaddr *) &servAddr, addrlen);
 	if(err < 0){
-		printf("failed to bind address to socket.\n");
+		perror("failed to bind address to socket.\n");
 		close(sockfd);
 		exit(1);
 	}
 
 	err = listen(sockfd, 5);
 	if(err < 0){
-		printf("listen failed.\n");
+		perror("listen failed.\n");
 		close(sockfd);
 		exit(1);
 	}
@@ -150,16 +151,17 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 }
 
 void *getsendResult(void *fd){
+	//pthread_barrier_wait(&threadBarrier);
 	int sockfd = *(int*)fd;
 	int err;
 	
 	while(waitKey(1) < 0){
 		pthread_mutex_lock(&bufferMutex);
 		while(bufferFrames.size() <= 0){
-			printf("waiting for frame in buffer\n");
+			//printf("waiting for frame in buffer\n");
 			pthread_cond_wait(&bufferCond, &bufferMutex);
 		}
-		printf("there is a frame in buffer\n");
+		//printf("there is a frame in buffer\n");
 		Mat frame = bufferFrames.back().clone();
 		pthread_mutex_unlock(&bufferMutex);
 	
@@ -167,7 +169,7 @@ void *getsendResult(void *fd){
 	
 		size_t n = result->indices.size();
 		
-		printf("%zu objects found\n",n);
+		//printf("%zu objects found\n",n);
 		err = write(sockfd,&n,sizeof(size_t));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -209,6 +211,7 @@ void *getsendResult(void *fd){
 }
 
 void *recvFrame(void *fd){
+	//pthread_barrier_wait(&threadBarrier);
 	int sockfd = *(int*)fd;
 	int err;
 	sleep(1);
@@ -216,7 +219,7 @@ void *recvFrame(void *fd){
 		Mat frame;
 		std::vector<uchar> vec;
 		err = BUFF_SIZE;
-		printf("start of frame reading\n" );
+		//printf("start of frame reading\n" );
 	
 		while(err == BUFF_SIZE){
 			uchar buffer[BUFF_SIZE];
@@ -231,7 +234,7 @@ void *recvFrame(void *fd){
 		}
 		
 		frame = imdecode (vec, 1);
-		printf("image received and decoded\n" );
+		//printf("image received and decoded\n" );
 		pthread_mutex_lock(&bufferMutex);
 		bufferFrames.push_back(frame);
 		//printf("there are now %zu frames in buffer\n",bufferFrames.size());
@@ -252,9 +255,10 @@ int main(int argc, char *argv[]) {
 	int sockfd, newsockfd1, newsockfd2, err, n;
 	connect_to_client(sockfd, newsockfd1, newsockfd2, argv);
 	
-	printf("connected\n");
+	//printf("connected\n");
 	pthread_mutex_init(&bufferMutex, NULL);
 	pthread_cond_init(&bufferCond, NULL);
+	//pthread_barrier_init(&threadBarrier, NULL, 2);
 	
 	pthread_t thread1, thread2;
 	pthread_create(&thread1, NULL, recvFrame, (void*) &newsockfd1);

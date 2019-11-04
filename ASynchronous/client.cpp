@@ -29,6 +29,7 @@ VideoCapture capture;
 Mat frame;
 pthread_mutex_t frameMutex;
 pthread_cond_t frameCond;
+//pthread_barrier_t threadBarrier;
 
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	int err;
@@ -97,18 +98,19 @@ void drawPred(string className, float conf, int left, int top, int right, int bo
 }
 
 void *capsend(void *fd){
-	printf("capsend thread\n");
+	//printf("capsend thread\n");
+	//pthread_barrier_wait(&threadBarrier);
 	int sockfd = *(int*)fd;
 	int err;
 	sleep(1);
 	std::vector<uchar> vec;
 	
-	while(waitKey(1) < 0){
-		printf("before lock\n");
+	while(true){//waitKey(1) < 0){
+		//printf("1: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
-		printf("lock aquired\n");
+		//printf("1: lock aquired\n");
 		capture.read(frame);
-		printf("frame captured\n");
+		//printf("1: frame captured\n");
 	
 		if (frame.empty()) {
 			perror("ERROR no frame\n");
@@ -116,9 +118,10 @@ void *capsend(void *fd){
 			continue;
 		}
 		pthread_cond_signal(&frameCond);
-		printf("frame exisits, signal sent\n");
+		//printf("1: frame exisits, signal sent\n");
 		pthread_mutex_unlock(&frameMutex);
 		
+		//printf("1: frame mutex unlocked\n");
 		imencode(".jpg", frame, vec);
 		
 		err = write(sockfd, vec.data(), vec.size());
@@ -127,25 +130,28 @@ void *capsend(void *fd){
 			close(sockfd);
 			exit(1);
 		} 
-		imshow("Live", frame);
+		//imshow("Live", frame);
 		//waitKey(200);
 	}
 }
 
 void *recvrend(void *fd){
+	//pthread_barrier_wait(&threadBarrier);
 	int sockfd = *(int*)fd;
 	int err;
 	
 	while(waitKey(1) < 0){
+		//printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
 		while(frame.empty()){
-			printf("waiting for captured frame\n");
+			//printf("2: waiting for captured frame\n");
 			pthread_cond_wait(&frameCond, &frameMutex);
 		}
-		printf("there is a frame captured\n");
+		//printf("2: there is a frame captured\n");
 		Mat resultFrame = frame.clone();
 		pthread_mutex_unlock(&frameMutex);
-			
+		
+		//printf("2: frame mutex unlocked\n"); 
 		size_t n;
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
@@ -153,7 +159,7 @@ void *recvrend(void *fd){
 			close(sockfd);
 			exit(1);
 		}
-		printf("%zu objects found\n",n);
+		//printf("2: %zu objects found\n",n);
 		
 		for (size_t i = 0; i < n; ++i) {
 			size_t len;
@@ -223,6 +229,7 @@ int main(int argc, char *argv[]) {
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_cond_init(&frameCond, NULL);
+	//pthread_barrier_init(&threadBarrier, NULL, 2);
 	
 	pthread_t thread1, thread2;
 	pthread_create(&thread1, NULL, capsend, (void*) &sockfd1);
