@@ -15,11 +15,9 @@ add_executable( S_Server Synchronous/server.cpp )
 add_executable( S_Client Synchronous/client.cpp )
 
 add_executable( A_Server ASynchronous/server.cpp )
-add_executable( A_Server2 ASynchronous/server2.cpp )
+add_executable( A_Server_old ASynchronous/server_old.cpp )
 add_executable( A_Client ASynchronous/client.cpp )
 
-add_executable( T_Server test/server.cpp )
-add_executable( T_Client test/client.cpp )
 
 target_link_libraries( Detection ${OpenCV_LIBS} )
 target_link_libraries( DetectionShort ${OpenCV_LIBS} )
@@ -28,9 +26,5 @@ target_link_libraries( S_Server ${OpenCV_LIBS} )
 target_link_libraries( S_Client ${OpenCV_LIBS} )
 
 target_link_libraries( A_Server ${OpenCV_LIBS} )
-target_link_libraries( A_Server2 ${OpenCV_LIBS} )
+target_link_libraries( A_Server_old ${OpenCV_LIBS} )
 target_link_libraries( A_Client ${OpenCV_LIBS} )
-
-target_link_libraries( T_Server ${OpenCV_LIBS} )
-target_link_libraries( T_Client ${OpenCV_LIBS} )
-

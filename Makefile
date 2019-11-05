@@ -56,17 +56,6 @@ CMAKE_BINARY_DIR = /home/ramon/Desktop/Thesis
 #=============================================================================
 # Targets provided globally by CMake.
 
-# Special rule for the target rebuild_cache
-rebuild_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
-	/usr/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
-.PHONY : rebuild_cache
-
-# Special rule for the target rebuild_cache
-rebuild_cache/fast: rebuild_cache
-
-.PHONY : rebuild_cache/fast
-
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "No interactive CMake dialog available..."
@@ -77,6 +66,17 @@ edit_cache:
 edit_cache/fast: edit_cache
 
 .PHONY : edit_cache/fast
+
+# Special rule for the target rebuild_cache
+rebuild_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
+	/usr/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+.PHONY : rebuild_cache
+
+# Special rule for the target rebuild_cache
+rebuild_cache/fast: rebuild_cache
+
+.PHONY : rebuild_cache/fast
 
 # The main all target
 all: cmake_check_build_system
@@ -150,19 +150,6 @@ Detection/fast:
 .PHONY : Detection/fast
 
 #=============================================================================
-# Target rules for targets named T_Client
-
-# Build rule for target.
-T_Client: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 T_Client
-.PHONY : T_Client
-
-# fast build rule for target.
-T_Client/fast:
-	$(MAKE) -f CMakeFiles/T_Client.dir/build.make CMakeFiles/T_Client.dir/build
-.PHONY : T_Client/fast
-
-#=============================================================================
 # Target rules for targets named S_Client
 
 # Build rule for target.
@@ -174,32 +161,6 @@ S_Client: cmake_check_build_system
 S_Client/fast:
 	$(MAKE) -f CMakeFiles/S_Client.dir/build.make CMakeFiles/S_Client.dir/build
 .PHONY : S_Client/fast
-
-#=============================================================================
-# Target rules for targets named A_Server2
-
-# Build rule for target.
-A_Server2: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 A_Server2
-.PHONY : A_Server2
-
-# fast build rule for target.
-A_Server2/fast:
-	$(MAKE) -f CMakeFiles/A_Server2.dir/build.make CMakeFiles/A_Server2.dir/build
-.PHONY : A_Server2/fast
-
-#=============================================================================
-# Target rules for targets named T_Server
-
-# Build rule for target.
-T_Server: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 T_Server
-.PHONY : T_Server
-
-# fast build rule for target.
-T_Server/fast:
-	$(MAKE) -f CMakeFiles/T_Server.dir/build.make CMakeFiles/T_Server.dir/build
-.PHONY : T_Server/fast
 
 #=============================================================================
 # Target rules for targets named S_Server
@@ -226,6 +187,19 @@ A_Server: cmake_check_build_system
 A_Server/fast:
 	$(MAKE) -f CMakeFiles/A_Server.dir/build.make CMakeFiles/A_Server.dir/build
 .PHONY : A_Server/fast
+
+#=============================================================================
+# Target rules for targets named A_Server_old
+
+# Build rule for target.
+A_Server_old: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 A_Server_old
+.PHONY : A_Server_old
+
+# fast build rule for target.
+A_Server_old/fast:
+	$(MAKE) -f CMakeFiles/A_Server_old.dir/build.make CMakeFiles/A_Server_old.dir/build
+.PHONY : A_Server_old/fast
 
 ASynchronous/client.o: ASynchronous/client.cpp.o
 
@@ -281,32 +255,32 @@ ASynchronous/server.cpp.s:
 	$(MAKE) -f CMakeFiles/A_Server.dir/build.make CMakeFiles/A_Server.dir/ASynchronous/server.cpp.s
 .PHONY : ASynchronous/server.cpp.s
 
-ASynchronous/server2.o: ASynchronous/server2.cpp.o
+ASynchronous/server_old.o: ASynchronous/server_old.cpp.o
 
-.PHONY : ASynchronous/server2.o
+.PHONY : ASynchronous/server_old.o
 
 # target to build an object file
-ASynchronous/server2.cpp.o:
-	$(MAKE) -f CMakeFiles/A_Server2.dir/build.make CMakeFiles/A_Server2.dir/ASynchronous/server2.cpp.o
-.PHONY : ASynchronous/server2.cpp.o
+ASynchronous/server_old.cpp.o:
+	$(MAKE) -f CMakeFiles/A_Server_old.dir/build.make CMakeFiles/A_Server_old.dir/ASynchronous/server_old.cpp.o
+.PHONY : ASynchronous/server_old.cpp.o
 
-ASynchronous/server2.i: ASynchronous/server2.cpp.i
+ASynchronous/server_old.i: ASynchronous/server_old.cpp.i
 
-.PHONY : ASynchronous/server2.i
+.PHONY : ASynchronous/server_old.i
 
 # target to preprocess a source file
-ASynchronous/server2.cpp.i:
-	$(MAKE) -f CMakeFiles/A_Server2.dir/build.make CMakeFiles/A_Server2.dir/ASynchronous/server2.cpp.i
-.PHONY : ASynchronous/server2.cpp.i
+ASynchronous/server_old.cpp.i:
+	$(MAKE) -f CMakeFiles/A_Server_old.dir/build.make CMakeFiles/A_Server_old.dir/ASynchronous/server_old.cpp.i
+.PHONY : ASynchronous/server_old.cpp.i
 
-ASynchronous/server2.s: ASynchronous/server2.cpp.s
+ASynchronous/server_old.s: ASynchronous/server_old.cpp.s
 
-.PHONY : ASynchronous/server2.s
+.PHONY : ASynchronous/server_old.s
 
 # target to generate assembly for a file
-ASynchronous/server2.cpp.s:
-	$(MAKE) -f CMakeFiles/A_Server2.dir/build.make CMakeFiles/A_Server2.dir/ASynchronous/server2.cpp.s
-.PHONY : ASynchronous/server2.cpp.s
+ASynchronous/server_old.cpp.s:
+	$(MAKE) -f CMakeFiles/A_Server_old.dir/build.make CMakeFiles/A_Server_old.dir/ASynchronous/server_old.cpp.s
+.PHONY : ASynchronous/server_old.cpp.s
 
 SimpleDetection/detection.o: SimpleDetection/detection.cpp.o
 
@@ -416,86 +390,30 @@ Synchronous/server.cpp.s:
 	$(MAKE) -f CMakeFiles/S_Server.dir/build.make CMakeFiles/S_Server.dir/Synchronous/server.cpp.s
 .PHONY : Synchronous/server.cpp.s
 
-test/client.o: test/client.cpp.o
-
-.PHONY : test/client.o
-
-# target to build an object file
-test/client.cpp.o:
-	$(MAKE) -f CMakeFiles/T_Client.dir/build.make CMakeFiles/T_Client.dir/test/client.cpp.o
-.PHONY : test/client.cpp.o
-
-test/client.i: test/client.cpp.i
-
-.PHONY : test/client.i
-
-# target to preprocess a source file
-test/client.cpp.i:
-	$(MAKE) -f CMakeFiles/T_Client.dir/build.make CMakeFiles/T_Client.dir/test/client.cpp.i
-.PHONY : test/client.cpp.i
-
-test/client.s: test/client.cpp.s
-
-.PHONY : test/client.s
-
-# target to generate assembly for a file
-test/client.cpp.s:
-	$(MAKE) -f CMakeFiles/T_Client.dir/build.make CMakeFiles/T_Client.dir/test/client.cpp.s
-.PHONY : test/client.cpp.s
-
-test/server.o: test/server.cpp.o
-
-.PHONY : test/server.o
-
-# target to build an object file
-test/server.cpp.o:
-	$(MAKE) -f CMakeFiles/T_Server.dir/build.make CMakeFiles/T_Server.dir/test/server.cpp.o
-.PHONY : test/server.cpp.o
-
-test/server.i: test/server.cpp.i
-
-.PHONY : test/server.i
-
-# target to preprocess a source file
-test/server.cpp.i:
-	$(MAKE) -f CMakeFiles/T_Server.dir/build.make CMakeFiles/T_Server.dir/test/server.cpp.i
-.PHONY : test/server.cpp.i
-
-test/server.s: test/server.cpp.s
-
-.PHONY : test/server.s
-
-# target to generate assembly for a file
-test/server.cpp.s:
-	$(MAKE) -f CMakeFiles/T_Server.dir/build.make CMakeFiles/T_Server.dir/test/server.cpp.s
-.PHONY : test/server.cpp.s
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... rebuild_cache"
+	@echo "... edit_cache"
 	@echo "... A_Client"
 	@echo "... DetectionShort"
 	@echo "... Detection"
-	@echo "... T_Client"
 	@echo "... S_Client"
-	@echo "... edit_cache"
-	@echo "... A_Server2"
-	@echo "... T_Server"
 	@echo "... S_Server"
 	@echo "... A_Server"
+	@echo "... rebuild_cache"
+	@echo "... A_Server_old"
 	@echo "... ASynchronous/client.o"
 	@echo "... ASynchronous/client.i"
 	@echo "... ASynchronous/client.s"
 	@echo "... ASynchronous/server.o"
 	@echo "... ASynchronous/server.i"
 	@echo "... ASynchronous/server.s"
-	@echo "... ASynchronous/server2.o"
-	@echo "... ASynchronous/server2.i"
-	@echo "... ASynchronous/server2.s"
+	@echo "... ASynchronous/server_old.o"
+	@echo "... ASynchronous/server_old.i"
+	@echo "... ASynchronous/server_old.s"
 	@echo "... SimpleDetection/detection.o"
 	@echo "... SimpleDetection/detection.i"
 	@echo "... SimpleDetection/detection.s"
@@ -508,12 +426,6 @@ help:
 	@echo "... Synchronous/server.o"
 	@echo "... Synchronous/server.i"
 	@echo "... Synchronous/server.s"
-	@echo "... test/client.o"
-	@echo "... test/client.i"
-	@echo "... test/client.s"
-	@echo "... test/server.o"
-	@echo "... test/server.i"
-	@echo "... test/server.s"
 .PHONY : help
 
 

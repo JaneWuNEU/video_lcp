@@ -29,7 +29,6 @@ VideoCapture capture;
 Mat frame;
 pthread_mutex_t frameMutex;
 pthread_cond_t frameCond;
-//pthread_barrier_t threadBarrier;
 
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	int err;
@@ -99,10 +98,8 @@ void drawPred(string className, float conf, int left, int top, int right, int bo
 
 void *capsend(void *fd){
 	//printf("capsend thread\n");
-	//pthread_barrier_wait(&threadBarrier);
 	int sockfd = *(int*)fd;
 	int err;
-	sleep(1);
 	std::vector<uchar> vec;
 	
 	while(true){//waitKey(1) < 0){
@@ -131,12 +128,10 @@ void *capsend(void *fd){
 			exit(1);
 		} 
 		//imshow("Live", frame);
-		//waitKey(200);
 	}
 }
 
 void *recvrend(void *fd){
-	//pthread_barrier_wait(&threadBarrier);
 	int sockfd = *(int*)fd;
 	int err;
 	
@@ -218,7 +213,7 @@ int main(int argc, char *argv[]) {
 		if (!capture.isOpened()) {
 			perror("ERROR opening video\n");
 			return 1;
-		}
+		}		
 	} else { 
 		capture.open(0);
 		if (!capture.isOpened()) {
@@ -229,7 +224,6 @@ int main(int argc, char *argv[]) {
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_cond_init(&frameCond, NULL);
-	//pthread_barrier_init(&threadBarrier, NULL, 2);
 	
 	pthread_t thread1, thread2;
 	pthread_create(&thread1, NULL, capsend, (void*) &sockfd1);

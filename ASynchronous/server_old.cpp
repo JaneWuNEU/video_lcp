@@ -27,26 +27,20 @@ using namespace cv;
 using namespace dnn;
 using namespace std;
 
+std::vector<string> classes;
+std::vector<Mat> bufferFrames;
+pthread_mutex_t bufferMutex;
+pthread_cond_t bufferCond;
+
+float confThreshold = 0.5; // Confidence threshold
+float nmsThreshold = 0.3;  // Non-maximum suppression threshold
+
 struct detObjects {
 	vector<int> classIds;
 	vector<float> confidences;
 	vector<Rect> boxes;
 	vector<int> indices;
 };
-
-std::vector<string> classes;
-std::vector<Mat> bufferFrames;
-pthread_mutex_t bufferMutex;
-pthread_mutex_t resultMutex;
-pthread_cond_t bufferCond;
-pthread_cond_t resultCond;
-//pthread_barrier_t threadBarrier;
-
-detObjects* result;
-bool resultReady;
-
-float confThreshold = 0.5; // Confidence threshold
-float nmsThreshold = 0.3;  // Non-maximum suppression threshold
 
 detObjects* postprocess(Mat& frame, const vector<Mat>& outs)
 {
@@ -155,31 +149,25 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 	newsockfd2 = accept(sockfd, (struct sockaddr *) &clientAddr, &addrlen);
 }
 
-void *sendResult(void *fd){
-	//printf("thread 3 started\n");
-	//pthread_barrier_wait(&threadBarrier);
+void *getsendResult(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
-	detObjects* localResult;
-	while(true){ //waitKey(1) < 0){
-		//printf("3: waiting for result mutex\n"); 
-		pthread_mutex_lock(&resultMutex);
-		while(!resultReady){
-			//printf("3: waiting until result is ready\n");
-			pthread_cond_wait(&resultCond, &resultMutex);
+	
+	while(waitKey(1) < 0){
+		pthread_mutex_lock(&bufferMutex);
+		while(bufferFrames.size() <= 0){
+			//printf("waiting for frame in buffer\n");
+			pthread_cond_wait(&bufferCond, &bufferMutex);
 		}
-		//printf("3: copying result\n");
-		localResult = result;
-		/*localResult->classIds = result->classIds;
-		localResult->confidences = result->confidences;
-		localResult->boxes = result->boxes;
-		localResult->indices = result->indices;*/ 
-		resultReady = false;
-		pthread_mutex_unlock(&resultMutex);
-		//printf("3: result mutex unlocked\n"); 
-		size_t n = localResult->indices.size();
+		//printf("there is a frame in buffer\n");
+		Mat frame = bufferFrames.back().clone();
+		pthread_mutex_unlock(&bufferMutex);
+	
+		detObjects* result = object_detection(frame);
+	
+		size_t n = result->indices.size();
 		
-		//printf("3: %zu objects found\n",n);
+		//printf("%zu objects found\n",n);
 		err = write(sockfd,&n,sizeof(size_t));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -187,11 +175,11 @@ void *sendResult(void *fd){
 			exit(1);
 		}
 		for (size_t i = 0; i < n; ++i) {
-			int idx = localResult->indices[i];
-			string className = classes[localResult->classIds[idx]];
+			int idx = result->indices[i];
+			string className = classes[result->classIds[idx]];
 			size_t len = className.length();
-			float conf = localResult->confidences[idx];
-			Rect box = localResult->boxes[idx];
+			float conf = result->confidences[idx];
+			Rect box = result->boxes[idx];
 			err = write(sockfd,&len,sizeof(size_t));
 			if (err < 0){
 				perror("ERROR writing to socket");
@@ -217,65 +205,18 @@ void *sendResult(void *fd){
 				exit(1);
 			}
 		}
-		//printf("3: Result sent\n");
-	}
-}
-
-void *getResult(void *dummy){
-	//printf("thread 2 started\n");
-	//pthread_barrier_wait(&threadBarrier);
-	int err;
-	
-	while(true){ //waitKey(1) < 0){
-		//printf("2: waiting for buffer mutex\n"); 
-		pthread_mutex_lock(&bufferMutex);
-		while(bufferFrames.size() <= 0){
-			//printf("2: waiting for frame in buffer\n");
-			pthread_cond_wait(&bufferCond, &bufferMutex);
-		}
-		//printf("2: there is a frame in buffer\n");
-		Mat frame = bufferFrames.back().clone();
-		pthread_mutex_unlock(&bufferMutex);
-		//printf("2: buffer mutex unlocked\n"); 
-		
-		detObjects* localResult; 
-		
-		if(!frame.empty()){
-			localResult = object_detection(frame);
-		} else {
-			printf("2: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!empty frame, no object detection performed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-			localResult->indices.clear();			
-			size_t n = localResult->indices.size();
-			printf("2: %zu objects found\n", n);
-		}
-		//printf("2: detection completed\n");
-		
-		//printf("2: waiting for result mutex\n"); 
-		pthread_mutex_lock(&resultMutex);
-		result = localResult;
-		/*result->classIds = localResult->classIds;
-		result->confidences = localResult->confidences;
-		result->boxes = localResult->boxes;
-		result->indices = localResult->indices;*/ 
-		resultReady = true;
-		pthread_cond_signal(&resultCond);
-		//printf("2: result ready, signal sent\n");
-		pthread_mutex_unlock(&resultMutex);
-		//printf("2: result mutex unlocked\n"); 
 	}
 }
 
 void *recvFrame(void *fd){
-	//printf("thread 1 started\n");
-	//pthread_barrier_wait(&threadBarrier);
 	int sockfd = *(int*)fd;
 	int err;
 	sleep(1);
-	while(true){ //waitKey(1) < 0){
+	while(waitKey(1) < 0){
 		Mat frame;
 		std::vector<uchar> vec;
 		err = BUFF_SIZE;
-		//printf("1: start of frame reading\n" );
+		//printf("start of frame reading\n" );
 	
 		while(err == BUFF_SIZE){
 			uchar buffer[BUFF_SIZE];
@@ -286,19 +227,19 @@ void *recvFrame(void *fd){
 				exit(1);
 			}
 			vec.insert(vec.end(), buffer, buffer+err);
+			//printf("part of frame read\n" );
 		}
 		
 		frame = imdecode (vec, 1);
-		//printf("1: image received and decoded, waiting for buffer mutex\n" );
+		//printf("image received and decoded\n" );
 		pthread_mutex_lock(&bufferMutex);
 		bufferFrames.push_back(frame);
-		//printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
+		//printf("there are now %zu frames in buffer\n",bufferFrames.size());
 		if(bufferFrames.size() > MAX_FRAME_BUFFER_SIZE){
 			bufferFrames.erase(bufferFrames.begin());
 		}
 		pthread_cond_signal(&bufferCond);
 		pthread_mutex_unlock(&bufferMutex);
-		//printf("1: buffer mutex unlocked\n"); 
 	}
 }
 
@@ -311,22 +252,15 @@ int main(int argc, char *argv[]) {
 	int sockfd, newsockfd1, newsockfd2, err, n;
 	connect_to_client(sockfd, newsockfd1, newsockfd2, argv);
 	
-	//printf("connected\n");
 	pthread_mutex_init(&bufferMutex, NULL);
-	pthread_mutex_init(&resultMutex, NULL);
 	pthread_cond_init(&bufferCond, NULL);
-	pthread_cond_init(&resultCond, NULL);
-	//pthread_barrier_init(&threadBarrier, NULL, 3);
-	resultReady = false;
 	
-	pthread_t thread1, thread2, thread3;
+	pthread_t thread1, thread2;
 	pthread_create(&thread1, NULL, recvFrame, (void*) &newsockfd1);
-	pthread_create(&thread2, NULL, getResult, NULL);
-	pthread_create(&thread3, NULL, sendResult, (void*) &newsockfd2);
+	pthread_create(&thread2, NULL, getsendResult, (void*) &newsockfd2);
 	
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
-	pthread_join(thread3, NULL);
 	close(sockfd);
 	close(newsockfd1);
 	close(newsockfd2);
