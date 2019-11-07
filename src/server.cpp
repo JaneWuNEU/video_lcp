@@ -141,7 +141,7 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 	servAddr.sin_port = htons(atoi(argv[1]));
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	err = bind(sockfd, (struct sockaddr *)&servAddr, addrlen);
+	err = ::bind(sockfd, (struct sockaddr *)&servAddr, addrlen);
 	if (err < 0)
 	{
 		perror("failed to bind address to socket.\n");
