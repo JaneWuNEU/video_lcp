@@ -8,23 +8,14 @@ include_directories(
 	${OpenCV_INCLUDE_DIRS} 
 )
 
-add_executable( Detection SimpleDetection/detection.cpp)
-add_executable( DetectionShort SimpleDetection/detectionShort.cpp)
+add_executable( detection simple_detection/detection.cpp)
+add_executable( detection_short simple_detection/detectionShort.cpp)
 
-add_executable( S_Server Synchronous/server.cpp )
-add_executable( S_Client Synchronous/client.cpp )
+add_executable( server src/server.cpp )
+add_executable( client src/client.cpp )
 
-add_executable( A_Server ASynchronous/server.cpp )
-add_executable( A_Server_old ASynchronous/server_old.cpp )
-add_executable( A_Client ASynchronous/client.cpp )
+target_link_libraries( detection ${OpenCV_LIBS} )
+target_link_libraries( detection_short ${OpenCV_LIBS} )
 
-
-target_link_libraries( Detection ${OpenCV_LIBS} )
-target_link_libraries( DetectionShort ${OpenCV_LIBS} )
-
-target_link_libraries( S_Server ${OpenCV_LIBS} )
-target_link_libraries( S_Client ${OpenCV_LIBS} )
-
-target_link_libraries( A_Server ${OpenCV_LIBS} )
-target_link_libraries( A_Server_old ${OpenCV_LIBS} )
-target_link_libraries( A_Client ${OpenCV_LIBS} )
+target_link_libraries( server ${OpenCV_LIBS} )
+target_link_libraries( client ${OpenCV_LIBS} )
