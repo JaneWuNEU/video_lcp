@@ -97,17 +97,17 @@ void drawPred(string className, float conf, int left, int top, int right, int bo
 }
 
 void *capsend(void *fd){
-	//printf("capsend thread\n");
+	printf("capsend thread\n");
 	int sockfd = *(int*)fd;
 	int err;
 	std::vector<uchar> vec;
 	
 	while(true){//waitKey(1) < 0){
-		//printf("1: waiting for frame mutex\n");
+		printf("1: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
-		//printf("1: lock aquired\n");
+		printf("1: lock aquired\n");
 		capture.read(frame);
-		//printf("1: frame captured\n");
+		printf("1: frame captured\n");
 	
 		if (frame.empty()) {
 			perror("ERROR no frame\n");
@@ -115,10 +115,10 @@ void *capsend(void *fd){
 			continue;
 		}
 		pthread_cond_signal(&frameCond);
-		//printf("1: frame exisits, signal sent\n");
+		printf("1: frame exisits, signal sent\n");
 		pthread_mutex_unlock(&frameMutex);
 		
-		//printf("1: frame mutex unlocked\n");
+		printf("1: frame mutex unlocked\n");
 		imencode(".jpg", frame, vec);
 		
 		err = write(sockfd, vec.data(), vec.size());
@@ -136,17 +136,17 @@ void *recvrend(void *fd){
 	int err;
 	
 	while(waitKey(1) < 0){
-		//printf("2: waiting for frame mutex\n");
+		printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
 		while(frame.empty()){
-			//printf("2: waiting for captured frame\n");
+			printf("2: waiting for captured frame\n");
 			pthread_cond_wait(&frameCond, &frameMutex);
 		}
-		//printf("2: there is a frame captured\n");
+		printf("2: there is a frame captured\n");
 		Mat resultFrame = frame.clone();
 		pthread_mutex_unlock(&frameMutex);
 		
-		//printf("2: frame mutex unlocked\n"); 
+		printf("2: frame mutex unlocked\n"); 
 		size_t n;
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
@@ -154,7 +154,7 @@ void *recvrend(void *fd){
 			close(sockfd);
 			exit(1);
 		}
-		//printf("2: %zu objects found\n",n);
+		printf("2: %zu objects found\n",n);
 		
 		for (size_t i = 0; i < n; ++i) {
 			size_t len;

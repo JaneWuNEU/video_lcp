@@ -96,15 +96,15 @@ detObjects *object_detection(Mat &frame)
 	nmsThreshold = 0.3;  // Non-maximum suppression threshold
 
 	// Load names of classes
-	string classesFile = "/darknet/data/coco.names";
+	string classesFile = "darknet/data/coco.names";
 	ifstream ifs(classesFile.c_str());
 	string line;
 	while (getline(ifs, line))
 		classes.push_back(line);
 
 	// Give the configuration and weight files for the model
-	string configPath = "/darknet/cfg/yolov3.cfg";
-	string modelPath = "/darknet/yolov3.weights";
+	string configPath = "darknet/cfg/yolov3.cfg";
+	string modelPath = "darknet/yolov3.weights";
 
 	// Load the network
 	//Net net = readNet(modelPath, configPath, "");
