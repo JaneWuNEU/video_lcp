@@ -36,7 +36,7 @@ void drawPred(int classId, float conf, int left, int top, int right, int bottom,
     top = max(top, labelSize.height);
     rectangle(frame, Point(left, top - round(1.5*labelSize.height)), Point(left + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
     putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
-	printf(" %s \n", label);
+	printf("%s \n",label.c_str());
 }
 
 void postprocess(Mat& frame, const vector<Mat>& outs)
