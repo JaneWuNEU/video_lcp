@@ -1,10 +1,2 @@
-/CMakeFiles/Client.dir/client.cpp.o
-/CMakeFiles/Detection.dir/detection.cpp.o
-/CMakeFiles/DetectionShort.dir/detectionShort.cpp.o
-/CMakeFiles/Server.dir/server.cpp.o
-/Client
-/Detection
-/DetectionShort
-/Server
+/build/
 /darknet/
-/CMakeFiles/

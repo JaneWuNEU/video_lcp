@@ -96,15 +96,15 @@ detObjects *object_detection(Mat &frame)
 	nmsThreshold = 0.3;  // Non-maximum suppression threshold
 
 	// Load names of classes
-	string classesFile = "darknet/data/coco.names";
+	string classesFile = "/darknet/data/coco.names";
 	ifstream ifs(classesFile.c_str());
 	string line;
 	while (getline(ifs, line))
 		classes.push_back(line);
 
 	// Give the configuration and weight files for the model
-	string configPath = "darknet/cfg/yolov3.cfg";
-	string modelPath = "darknet/yolov3.weights";
+	string configPath = "/darknet/cfg/yolov3.cfg";
+	string modelPath = "/darknet/yolov3.weights";
 
 	// Load the network
 	//Net net = readNet(modelPath, configPath, "");
@@ -163,28 +163,28 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 
 void *sendResult(void *fd)
 {
-	//printf("thread 3 started\n");
+	printf("thread 3 started\n");
 	int sockfd = *(int *)fd;
 	int err;
 	detObjects *localResult;
 	while (true)
 	{
-		//printf("3: waiting for result mutex\n");
+		printf("3: waiting for result mutex\n");
 		pthread_mutex_lock(&resultMutex);
 		while (!resultReady)
 		{
-			//printf("3: waiting until result is ready\n");
+			printf("3: waiting until result is ready\n");
 			pthread_cond_wait(&resultCond, &resultMutex);
 		}
-		//printf("3: copying result\n");
+		printf("3: copying result\n");
 		localResult = result;
 
 		resultReady = false;
 		pthread_mutex_unlock(&resultMutex);
-		//printf("3: result mutex unlocked\n");
+		printf("3: result mutex unlocked\n");
 		size_t n = localResult->indices.size();
 
-		//printf("3: %zu objects found\n",n);
+		printf("3: %zu objects found\n",n);
 		err = write(sockfd, &n, sizeof(size_t));
 		if (err < 0)
 		{
@@ -228,28 +228,28 @@ void *sendResult(void *fd)
 				exit(1);
 			}
 		}
-		//printf("3: Result sent\n");
+		printf("3: Result sent\n");
 	}
 }
 
 void *getResult(void *dummy)
 {
-	//printf("thread 2 started\n");
+	printf("thread 2 started\n");
 	int err;
 
 	while (true)
 	{
-		//printf("2: waiting for buffer mutex\n");
+		printf("2: waiting for buffer mutex\n");
 		pthread_mutex_lock(&bufferMutex);
 		while (bufferFrames.size() <= 0)
 		{
-			//printf("2: waiting for frame in buffer\n");
+			printf("2: waiting for frame in buffer\n");
 			pthread_cond_wait(&bufferCond, &bufferMutex);
 		}
-		//printf("2: there is a frame in buffer\n");
+		printf("2: there is a frame in buffer\n");
 		Mat frame = bufferFrames.back().clone();
 		pthread_mutex_unlock(&bufferMutex);
-		//printf("2: buffer mutex unlocked\n");
+		printf("2: buffer mutex unlocked\n");
 
 		detObjects *localResult;
 
@@ -259,27 +259,27 @@ void *getResult(void *dummy)
 		}
 		else
 		{
-			printf("2: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!empty frame, no object detection performed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+			printf("2: !!!empty frame, no object detection performed!!!!!!!!!!\n");
 			localResult->indices.clear();
 			size_t n = localResult->indices.size();
 			printf("2: %zu objects found\n", n);
 		}
-		//printf("2: detection completed\n");
+		printf("2: detection completed\n");
 
-		//printf("2: waiting for result mutex\n");
+		printf("2: waiting for result mutex\n");
 		pthread_mutex_lock(&resultMutex);
 		result = localResult;
 		resultReady = true;
 		pthread_cond_signal(&resultCond);
-		//printf("2: result ready, signal sent\n");
+		printf("2: result ready, signal sent\n");
 		pthread_mutex_unlock(&resultMutex);
-		//printf("2: result mutex unlocked\n");
+		printf("2: result mutex unlocked\n");
 	}
 }
 
 void *recvFrame(void *fd)
 {
-	//printf("thread 1 started\n");
+	printf("thread 1 started\n");
 	int sockfd = *(int *)fd;
 	int err;
 
@@ -288,7 +288,7 @@ void *recvFrame(void *fd)
 		Mat frame;
 		std::vector<uchar> vec;
 		err = BUFF_SIZE;
-		//printf("1: start of frame reading\n" );
+		printf("1: start of frame reading\n" );
 
 		while (err == BUFF_SIZE)
 		{
@@ -304,17 +304,17 @@ void *recvFrame(void *fd)
 		}
 
 		frame = imdecode(vec, 1);
-		//printf("1: image received and decoded, waiting for buffer mutex\n" );
+		printf("1: image received and decoded, waiting for buffer mutex\n" );
 		pthread_mutex_lock(&bufferMutex);
 		bufferFrames.push_back(frame);
-		//printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
+		printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
 		if (bufferFrames.size() > MAX_FRAME_BUFFER_SIZE)
 		{
 			bufferFrames.erase(bufferFrames.begin());
 		}
 		pthread_cond_signal(&bufferCond);
 		pthread_mutex_unlock(&bufferMutex);
-		//printf("1: buffer mutex unlocked\n");
+		printf("1: buffer mutex unlocked\n");
 	}
 }
 
