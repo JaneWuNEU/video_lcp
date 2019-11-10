@@ -144,6 +144,7 @@ int main(int argc, char** argv )
     string label = format("Inference time: %.2f ms", t);
     putText(image2, label, Point(0, 15), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 255, 0));
 	
+	printf("%s\n", label.c_str());
 	//imshow("test", image2);
 		 
 	//waitKey(0);
