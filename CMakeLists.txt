@@ -11,6 +11,11 @@ include_directories(
 	${DARKNET_PATH}/include
 )
 
+option(ENABLE_OPENCV "Enable OpenCV integration" ON)
+option(ENABLE_CUDA "Enable CUDA support" ON)
+option(ENABLE_CUDNN "Enable CUDNN" ON)
+option(ENABLE_CUDNN_HALF "Enable CUDNN Half precision" ON)
+
 add_library(${DARKNET_LIB_NAME} SHARED IMPORTED)
 set_property(TARGET ${DARKNET_LIB_NAME} PROPERTY IMPORTED_LOCATION "${DARKNET_PATH}/libdarknet.so")
 
@@ -30,4 +35,4 @@ target_link_libraries( test_server ${OpenCV_LIBS} )
 target_link_libraries( test_client ${OpenCV_LIBS} )
 #target_link_libraries( test_detection ${OpenCV_LIBS} )
 target_link_libraries( test_detection_darknet ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
-target_link_libraries( test_detection_darknet2 ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
+target_link_libraries( test_detection_darknet2 ${OpenCV_LIBS} ${DARKNET_LIB_NAME} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
