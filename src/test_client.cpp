@@ -17,7 +17,6 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
-#include <opencv2/dnn.hpp>
 #include <opencv2/imgproc.hpp>
 
 #define BUFF_SIZE 2048
