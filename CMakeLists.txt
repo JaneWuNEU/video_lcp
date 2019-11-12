@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project( Thesis )
 find_package( OpenCV 3 REQUIRED )
 set(CMAKE_CXX_FLAGS "-std=c++11 -pthread")
-set(DARKNET_PATH darknet)
-set(DARKNET_LIB_NAME libdarknet)
+set(darknet_root "darknet")
 
 include_directories( 
 	${CMAKE_CURRENT_SOURCE_DIR}
@@ -11,8 +10,8 @@ include_directories(
 	${DARKNET_PATH}/include
 )
 
-add_library(${DARKNET_LIB_NAME} SHARED IMPORTED)
-set_property(TARGET ${DARKNET_LIB_NAME} PROPERTY IMPORTED_LOCATION "${DARKNET_PATH}/libdark.so")
+add_library(darknet SHARED IMPORTED)
+set_target_properties(darknet PROPERTIES IMPORTED_LOCATION "${darknet_root}/libdarknet.so")
 
 #add_executable( server src/server.cpp )
 #add_executable( client src/client.cpp )
@@ -29,5 +28,5 @@ add_executable( test_detection_darknet2 src/test_detection_darknet2.cpp )
 target_link_libraries( test_server ${OpenCV_LIBS} )
 target_link_libraries( test_client ${OpenCV_LIBS} )
 #target_link_libraries( test_detection ${OpenCV_LIBS} )
-target_link_libraries( test_detection_darknet ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
-target_link_libraries( test_detection_darknet2 ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
+target_link_libraries( test_detection_darknet ${OpenCV_LIBS} darknet )
+target_link_libraries( test_detection_darknet2 ${OpenCV_LIBS} darknet )
