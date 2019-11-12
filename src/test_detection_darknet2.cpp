@@ -14,10 +14,7 @@
 // It makes sense only for video-Camera (not for video-File)
 // To use - uncomment the following line. Optical-flow is supported only by OpenCV 3.x - 4.x
 //#define TRACK_OPTFLOW
-#define GPU
-#define OPENCV
-#define CUDNN
-#define CUDNN_HALF
+//#define GPU
 
 // To use 3D-stereo camera ZED - uncomment the following line. ZED_SDK should be installed.
 //#define ZED_STEREO
