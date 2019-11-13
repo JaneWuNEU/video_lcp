@@ -145,8 +145,8 @@ int main(int argc, char** argv )
     putText(image2, label, Point(0, 15), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 255, 0));
 	
 	printf("%s\n", label.c_str());
-	//imshow("test", image2);
+	imshow("test", image2);
 		 
-	//waitKey(0);
+	waitKey(0);
     return 0;
 }

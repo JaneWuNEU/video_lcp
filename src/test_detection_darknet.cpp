@@ -77,12 +77,12 @@ int main(int argc, char *argv[])
 
 	image2 = cv::imdecode (vec, 1);
 	
+	auto det_image = detector.mat_to_image_resize(image2);
 	
 	auto start = std::chrono::steady_clock::now();
 	
-	//auto det_image = detector.mat_to_image_resize(image2);
-	//std::vector<bbox_t> result_vec = detector.detect_resized(*det_image, image2.size().width, image2.size().height);
-	std::vector<bbox_t> result_vec = detector.detect(image2);
+	std::vector<bbox_t> result_vec = detector.detect_resized(*det_image, image2.size().width, image2.size().height);
+	//std::vector<bbox_t> result_vec = detector.detect(image2);
 	
 	auto end = std::chrono::steady_clock::now();
 	std::chrono::duration<double> spent = end - start;
