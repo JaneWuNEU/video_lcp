@@ -210,6 +210,7 @@ void *recvFrame(void *fd)
 	printf("thread 1 started\n");
 	int sockfd = *(int *)fd;
 	int err;
+	size_t n;
 
 	while (true)
 	{
@@ -217,8 +218,16 @@ void *recvFrame(void *fd)
 		vector<uchar> vec;
 		err = BUFF_SIZE;
 		printf("1: start of frame reading\n" );
-
-		while (err == BUFF_SIZE)
+		
+		err = read(sockfd,&n,sizeof(size_t));
+		if (err < 0){ 
+			perror("ERROR reading from socket");
+			close(sockfd);
+			exit(1);
+		}
+		
+		size_t curr;
+		while (curr < n)
 		{
 			uchar buffer[BUFF_SIZE];
 			err = read(sockfd, buffer, BUFF_SIZE);
@@ -229,6 +238,8 @@ void *recvFrame(void *fd)
 				exit(1);
 			}
 			vec.insert(vec.end(), buffer, buffer + err);
+			curr += err;
+			printf("1: %d bytes read\n",err); 
 		}
 
 		frame = imdecode(vec, 1);

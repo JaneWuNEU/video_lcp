@@ -99,7 +99,7 @@ void *recvrend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
 	
-	while(waitKey(1) < 0){
+	//while(waitKey(1) < 0){
 		printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
 		while(frame.empty()){
@@ -159,7 +159,7 @@ void *recvrend(void *fd){
 		}
 		imshow("Result", resultFrame);
 		//waitKey(5);
-	}
+	//}
 }
 
 void *capsend(void *fd){
@@ -168,7 +168,7 @@ void *capsend(void *fd){
 	int err;
 	vector<uchar> vec;
 	
-	while(true){//waitKey(1) < 0){
+	//while(true){//waitKey(1) < 0){
 		printf("1: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
 		printf("1: lock aquired\n");
@@ -178,7 +178,7 @@ void *capsend(void *fd){
 		if (frame.empty()) {
 			perror("ERROR no frame\n");
 			pthread_mutex_unlock(&frameMutex);
-			continue;
+			//continue;
 		}
 		pthread_cond_signal(&frameCond);
 		printf("1: frame exisits, signal sent\n");
@@ -187,15 +187,22 @@ void *capsend(void *fd){
 		printf("1: frame mutex unlocked\n");
 		imencode(".jpg", frame, vec);
 		
+		size_t n = vec.size();
+		err = write(sockfd, &n, sizeof(size_t));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
 		err = write(sockfd, vec.data(), vec.size());
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
 		} 
-		sleep(10);
 		//imshow("Live", frame);
-	}
+	//}
 }
 
 int main(int argc, char *argv[]) {
