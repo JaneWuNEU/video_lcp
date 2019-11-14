@@ -189,6 +189,8 @@ void *getResult(void *dummy)
 		if (!frame.empty())
 		{
 			local_result_vec = detector.detect(frame);
+		} else {
+			printf("2: frame empty, no detection\n");
 		}
 		printf("2: detection completed\n");
 
@@ -230,7 +232,13 @@ void *recvFrame(void *fd)
 		}
 
 		frame = imdecode(vec, 1);
-		printf("1: image received and decoded, waiting for buffer mutex\n" );
+		if (!frame.empty())
+		{
+			printf("1: frame received and decoded\n");
+		} else {
+			printf("1: frame empty, no detection\n");
+		}
+		
 		pthread_mutex_lock(&bufferMutex);
 		bufferFrames.push_back(frame);
 		printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
