@@ -239,7 +239,6 @@ void *recvFrame(void *fd)
 			}
 			vec.insert(vec.end(), buffer, buffer + err);
 			curr += err;
-			printf("1: %d bytes read\n",err); 
 		}
 
 		frame = imdecode(vec, 1);
