@@ -99,7 +99,7 @@ void *recvrend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
 	
-	//while(waitKey(1) < 0){
+	while(waitKey(1) < 0){
 		printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
 		while(frame.empty()){
@@ -158,9 +158,8 @@ void *recvrend(void *fd){
 			drawPred(className, conf, box.x, box.y, box.x + box.width, box.y + box.height, resultFrame);
 		}
 		imshow("Result", resultFrame);
-		waitKey(0);
 		//waitKey(5);
-	//}
+	}
 }
 
 void *capsend(void *fd){
@@ -169,7 +168,7 @@ void *capsend(void *fd){
 	int err;
 	vector<uchar> vec;
 	
-	//while(true){//waitKey(1) < 0){
+	while(true){//waitKey(1) < 0){
 		printf("1: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
 		printf("1: lock aquired\n");
@@ -179,7 +178,7 @@ void *capsend(void *fd){
 		if (frame.empty()) {
 			perror("ERROR no frame\n");
 			pthread_mutex_unlock(&frameMutex);
-			//continue;
+			continue;
 		}
 		pthread_cond_signal(&frameCond);
 		printf("1: frame exisits, signal sent\n");
@@ -203,7 +202,7 @@ void *capsend(void *fd){
 			exit(1);
 		} 
 		//imshow("Live", frame);
-	//}
+	}
 }
 
 int main(int argc, char *argv[]) {
