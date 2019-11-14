@@ -78,13 +78,23 @@ int main(int argc, char *argv[])
 	image2 = cv::imdecode (vec, 1);
 	
 	auto start = std::chrono::steady_clock::now();
-	
-	//auto det_image = detector.mat_to_image_resize(image2);
-	//std::vector<bbox_t> result_vec = detector.detect_resized(*det_image, image2.size().width, image2.size().height);
-	std::vector<bbox_t> result_vec = detector.detect(image2);
-	
+	cv::Mat frame = image2.clone();
 	auto end = std::chrono::steady_clock::now();
 	std::chrono::duration<double> spent = end - start;
+	std::cout << " Time: " << spent.count() << " sec \n";
+
+	start = std::chrono::steady_clock::now();
+	auto det_image = detector.mat_to_image_resize(image2);
+	end = std::chrono::steady_clock::now();
+	spent = end - start;
+	std::cout << " Time: " << spent.count() << " sec \n";
+
+	start = std::chrono::steady_clock::now();
+	//auto det_image = detector.mat_to_image_resize(image2);
+	std::vector<bbox_t> result_vec = detector.detect_resized(*det_image, image2.size().width, image2.size().height);
+	//std::vector<bbox_t> result_vec = detector.detect(image2);
+	end = std::chrono::steady_clock::now();
+	spent = end - start;
 	std::cout << " Time: " << spent.count() << " sec \n";
 
 	draw_boxes(image2, result_vec, obj_names);
