@@ -158,6 +158,7 @@ void *recvrend(void *fd){
 			drawPred(className, conf, box.x, box.y, box.x + box.width, box.y + box.height, resultFrame);
 		}
 		imshow("Result", resultFrame);
+		waitKey(0);
 		//waitKey(5);
 	//}
 }

@@ -226,7 +226,7 @@ void *recvFrame(void *fd)
 			exit(1);
 		}
 		
-		size_t curr;
+		size_t curr = 0;
 		while (curr < n)
 		{
 			uchar buffer[BUFF_SIZE];
