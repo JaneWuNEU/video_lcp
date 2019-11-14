@@ -236,7 +236,7 @@ void *recvFrame(void *fd)
 		{
 			printf("1: frame received and decoded\n");
 		} else {
-			printf("1: frame empty, no detection\n");
+			printf("1: frame empty\n");
 		}
 		
 		pthread_mutex_lock(&bufferMutex);

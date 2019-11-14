@@ -193,6 +193,7 @@ void *capsend(void *fd){
 			close(sockfd);
 			exit(1);
 		} 
+		sleep(10);
 		//imshow("Live", frame);
 	}
 }
