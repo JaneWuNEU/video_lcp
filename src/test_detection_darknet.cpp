@@ -96,8 +96,14 @@ int main(int argc, char *argv[])
 	end = std::chrono::steady_clock::now();
 	spent = end - start;
 	std::cout << " Time: " << spent.count() << " sec \n";
-
+	
+	
+	start = std::chrono::steady_clock::now();
 	draw_boxes(image2, result_vec, obj_names);
+	end = std::chrono::steady_clock::now();
+	spent = end - start;
+	std::cout << " Time: " << spent.count() << " sec \n";
+	
 	cv::imshow("Result", image2);
 	//show_console_result(result_vec, obj_names);
 	cv::waitKey(0);

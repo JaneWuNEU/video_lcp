@@ -28,7 +28,17 @@ VideoCapture capture;
 Mat frame;
 pthread_mutex_t frameMutex;
 pthread_cond_t frameCond;
+vector<string> obj_names;
 
+struct bbox_t {
+    unsigned int x, y, w, h;       // (x,y) - top-left corner, (w, h) - width & height of bounded box
+    float prob;                    // confidence - probability that the object was found correctly
+    unsigned int obj_id;           // class of object - from range [0, classes-1]
+    unsigned int track_id;         // tracking id for video (0 - untracked, 1 - inf - tracked object)
+    unsigned int frames_counter;   // counter of frames on which the object was detected
+    float x_3d, y_3d, z_3d;        // center of object (in Meters) if ZED 3D Camera is used
+};
+	
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	int err;
 	struct sockaddr_in serv_addr;
@@ -78,13 +88,22 @@ void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	}
 }
 
-void drawPred(string className, float conf, int left, int top, int right, int bottom, Mat& frame)
+vector<string> objects_names_from_file(string const filename) {
+    ifstream file(filename);
+    vector<string> file_lines;
+    if (!file.is_open()) return file_lines;
+    for(string line; getline(file, line);) file_lines.push_back(line);
+    cout << "object names loaded \n";
+    return file_lines;
+}
+
+void drawPred(string className, float prob, int left, int top, int right, int bottom, Mat& frame)
 {
     //Draw a rectangle displaying the bounding box
     rectangle(frame, Point(left, top), Point(right, bottom), Scalar(255, 178, 50), 3);
     
     //Get the label for the class name and its confidence
-    string label = format("%.2f", conf);
+    string label = format("%.2f", prob);
     label = className + ":" + label;
     
     //Display the label at the top of the bounding box
@@ -95,11 +114,83 @@ void drawPred(string className, float conf, int left, int top, int right, int bo
     putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
 }
 
+void drawBoxes(Mat mat_img, vector<bbox_t> result_vec)
+{
+    for (auto &i : result_vec) {
+        rectangle(mat_img, Point(i.x, i.y), Point(i.x+i.w, i.y+i.h), Scalar(255, 178, 50), 3);
+        if (obj_names.size() > i.obj_id) {
+            string label = format("%.2f", i.prob);
+			label = obj_names[i.obj_id] + ":" + label;
+			
+			int baseLine;
+            Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
+            int top = max((int)i.y, labelSize.height);
+
+            rectangle(mat_img, Point(i.x, i.y - round(1.5*labelSize.height)), Point(i.x + round(1.5*labelSize.width), i.y + baseLine), Scalar(255, 255, 255), FILLED);
+            putText(mat_img, label, Point2f(i.x, i.y), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
+        }
+    }
+}
+/*
+void *recvrend(void *fd){
+	int sockfd = *(int*)fd;
+	int err;
+	
+	pthread_mutex_lock(&frameMutex);
+	while(frame.empty()){
+		printf("2: waiting for captured frame\n");
+		pthread_cond_wait(&frameCond, &frameMutex);
+	}
+	pthread_mutex_unlock(&frameMutex);
+	
+	while(waitKey(1) < 0){
+		auto start = std::chrono::steady_clock::now();
+	
+		printf("2: waiting for frame mutex\n");
+		pthread_mutex_lock(&frameMutex);
+		Mat resultFrame = frame.clone();
+		pthread_mutex_unlock(&frameMutex);
+		printf("2: frame mutex unlocked\n"); 
+		
+		vector<bbox_t> result_vec;
+		size_t n;
+		err = read(sockfd,&n,sizeof(size_t));
+		if (err < 0){ 
+			perror("ERROR reading from socket");
+			close(sockfd);
+			exit(1);
+		}
+		printf("2: %zu objects found\n",n);
+		
+		for (size_t i = 0; i < n; ++i) {
+			bbox_t obj;
+			err = read(sockfd,&obj,sizeof(bbox_t));
+			if (err < 0){ 
+				perror("ERROR reading from socket");
+				close(sockfd);
+				exit(1);
+			}
+			result_vec.push_back(obj);
+		}
+		
+		drawBoxes(resultFrame, result_vec);
+		
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
+		std::cout << " Time: " << spent.count() << " sec \n";
+	
+		imshow("Result", resultFrame);
+		//waitKey(5);
+	}
+} */
+
 void *recvrend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
 	
 	while(waitKey(1) < 0){
+		auto start = std::chrono::steady_clock::now();
+	
 		printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
 		while(frame.empty()){
@@ -157,10 +248,15 @@ void *recvrend(void *fd){
 			
 			drawPred(className, conf, box.x, box.y, box.x + box.width, box.y + box.height, resultFrame);
 		}
+		
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
+		std::cout << " Time: " << spent.count() << " sec \n";
+	
 		imshow("Result", resultFrame);
 		//waitKey(5);
 	}
-}
+} 
 
 void *capsend(void *fd){
 	printf("capsend thread\n");
@@ -228,6 +324,9 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 	}
+	
+	string names_file = "darknet/data/coco.names";
+	obj_names = objects_names_from_file(names_file);
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_cond_init(&frameCond, NULL);

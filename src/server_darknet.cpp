@@ -78,6 +78,55 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 	newsockfd2 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 }
 
+/*void *sendResult(void *fd)
+{
+	printf("thread 3 started\n");
+	int sockfd = *(int *)fd;
+	int err;
+	vector<bbox_t> local_result_vec;
+	
+	pthread_barrier_wait(&initBarrier);
+	
+	while (true)
+	{
+		printf("3: waiting for result mutex\n");
+		pthread_mutex_lock(&resultMutex);
+		while (!resultReady)
+		{
+			printf("3: waiting until result is ready\n");
+			pthread_cond_wait(&resultCond, &resultMutex);
+		}
+		printf("3: copying result\n");
+		local_result_vec = result_vec;
+		resultReady = false;
+		pthread_mutex_unlock(&resultMutex);
+		printf("3: result mutex unlocked\n");
+		
+		size_t n = local_result_vec.size();
+
+		printf("3: %zu objects found\n",n);
+		err = write(sockfd, &n, sizeof(size_t));
+		if (err < 0)
+		{
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		}
+		for (auto &i : local_result_vec)
+		{
+			err = write(sockfd, &i, sizeof(bbox_t));
+			if (err < 0)
+			{
+				perror("ERROR writing to socket");
+				close(sockfd);
+				exit(1);
+			}
+		}
+		printf("3: Result sent\n");
+	}
+} */
+
+
 void *sendResult(void *fd)
 {
 	printf("thread 3 started\n");
@@ -149,7 +198,7 @@ void *sendResult(void *fd)
 		}
 		printf("3: Result sent\n");
 	}
-}
+} 
 
 vector<string> objects_names_from_file(string const filename) {
     ifstream file(filename);
