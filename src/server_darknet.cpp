@@ -84,6 +84,7 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 	newsockfd2 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 }
 
+/*
 void *sendResult(void *fd)
 {
 	//printf("thread 3 started\n");
@@ -147,7 +148,7 @@ void *sendResult(void *fd)
 		
 		//printf("3: Result sent\n");
 	}
-} 
+}  */
 
 /*
 void *sendResult(void *fd)
@@ -231,7 +232,7 @@ vector<string> objects_names_from_file(string const filename) {
     cout << "object names loaded \n";
     return file_lines;
 }
-
+/*
 void *getResult(void *dummy)
 {
 	//printf("thread 2 started\n");
@@ -280,6 +281,91 @@ void *getResult(void *dummy)
 		//printf("2: result ready, signal sent\n");
 		pthread_mutex_unlock(&resultMutex);
 		//printf("2: result mutex unlocked\n");
+	}
+}*/
+
+void *getSendResult(void *fd)
+{
+	//printf("thread 3 started\n");
+	int sockfd = *(int *)fd;
+	int err;
+	
+	string names_file = "darknet/data/coco.names";
+    string cfg_file = "darknet/cfg/yolov3.cfg";
+    string weights_file = "darknet/yolov3.weights";
+    
+	Detector detector(cfg_file, weights_file);
+    obj_names = objects_names_from_file(names_file);
+	
+	Mat frame;
+	vector<bbox_t> local_result_vec;
+	result_obj curr_result_obj;
+	
+	pthread_barrier_wait(&initBarrier);
+	
+	while (true)
+	{
+		//printf("2: waiting for buffer mutex\n");
+		auto start = std::chrono::steady_clock::now();
+		pthread_mutex_lock(&bufferMutex);
+		while (bufferFrames.size() <= 0)
+		{
+			//printf("2: waiting for frame in buffer\n");
+			pthread_cond_wait(&bufferCond, &bufferMutex);
+		}
+		//printf("2: there is a frame in buffer\n");
+		frame = bufferFrames.front().clone();
+		bufferFrames.erase(bufferFrames.begin());
+		pthread_mutex_unlock(&bufferMutex);
+		//printf("2: buffer mutex unlocked\n");
+		
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
+		std::cout << "1: Time: " << spent.count() << " sec \n";
+		
+		if (!frame.empty())
+		{
+			local_result_vec = detector.detect(frame);
+		} else {
+			//printf("2: frame empty, no detection\n");
+		}
+		//printf("2: detection completed\n");
+		
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "2: Time: " << spent.count() << " sec \n";
+
+		size_t n = local_result_vec.size();
+
+		//printf("3: %zu objects found\n",n);
+		err = write(sockfd, &n, sizeof(size_t));
+		if (err < 0)
+		{
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		}
+		for (auto &i : local_result_vec)
+		{
+			curr_result_obj.x = i.x; 
+			curr_result_obj.y = i.y;
+			curr_result_obj.w = i.w;
+			curr_result_obj.h = i.h;
+			curr_result_obj.prob = i.prob;
+			curr_result_obj.obj_id = i.obj_id;
+			
+			err = write(sockfd, &curr_result_obj, sizeof(result_obj));
+			//err = write(sockfd, &i, sizeof(bbox_t));
+			if (err < 0)
+			{
+				perror("ERROR writing to socket");
+				close(sockfd);
+				exit(1);
+			}
+		}
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "3: Time: " << spent.count() << " sec \n";
 	}
 }
 
@@ -356,18 +442,23 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&resultMutex, NULL);
 	pthread_cond_init(&bufferCond, NULL);
 	pthread_cond_init(&resultCond, NULL);
-	pthread_barrier_init(&initBarrier,NULL,3);
-
+	
 	resultReady = false;
 
+/*	pthread_barrier_init(&initBarrier,NULL,3);
 	pthread_t thread1, thread2, thread3;
 	pthread_create(&thread1, NULL, recvFrame, (void *)&newsockfd1);
 	pthread_create(&thread2, NULL, getResult, NULL);
 	pthread_create(&thread3, NULL, sendResult, (void *)&newsockfd2);
+*/	
+	pthread_barrier_init(&initBarrier,NULL,2);
+	pthread_t thread1, thread2;
+	pthread_create(&thread1, NULL, recvFrame, (void *)&newsockfd1);
+	pthread_create(&thread2, NULL, getSendResult, (void *)&newsockfd2);
 
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
-	pthread_join(thread3, NULL);
+	//pthread_join(thread3, NULL);
 	close(sockfd);
 	close(newsockfd1);
 	close(newsockfd2);
