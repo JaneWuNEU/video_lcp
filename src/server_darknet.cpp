@@ -35,6 +35,7 @@ pthread_mutex_t bufferMutex;
 pthread_mutex_t resultMutex;
 pthread_cond_t bufferCond;
 pthread_cond_t resultCond;
+pthread_barrier_t initBarrier;
 
 vector<bbox_t> result_vec;
 bool resultReady;
@@ -83,6 +84,8 @@ void *sendResult(void *fd)
 	int sockfd = *(int *)fd;
 	int err;
 	vector<bbox_t> local_result_vec;
+	
+	pthread_barrier_wait(&initBarrier);
 	
 	while (true)
 	{
@@ -172,6 +175,8 @@ void *getResult(void *dummy)
 	Mat frame;
 	vector<bbox_t> local_result_vec;
 	
+	pthread_barrier_wait(&initBarrier);
+	
 	while (true)
 	{
 		printf("2: waiting for buffer mutex\n");
@@ -211,6 +216,8 @@ void *recvFrame(void *fd)
 	int sockfd = *(int *)fd;
 	int err;
 	size_t n;
+	
+	pthread_barrier_wait(&initBarrier);
 
 	while (true)
 	{
@@ -230,7 +237,7 @@ void *recvFrame(void *fd)
 		while (curr < n)
 		{
 			uchar buffer[BUFF_SIZE];
-			err = read(sockfd, buffer, BUFF_SIZE);
+			err = read(sockfd, buffer, min((int)(n-curr),BUFF_SIZE));
 			if (err < 0)
 			{
 				perror("ERROR reading from socket");
@@ -245,20 +252,19 @@ void *recvFrame(void *fd)
 		if (!frame.empty())
 		{
 			printf("1: frame received and decoded\n");
+			pthread_mutex_lock(&bufferMutex);
+			bufferFrames.push_back(frame);
+			printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
+			if (bufferFrames.size() > MAX_FRAME_BUFFER_SIZE)
+			{
+				bufferFrames.erase(bufferFrames.begin());
+			}
+			pthread_cond_signal(&bufferCond);
+			pthread_mutex_unlock(&bufferMutex);
+			printf("1: buffer mutex unlocked\n");
 		} else {
 			printf("1: frame empty\n");
 		}
-		
-		pthread_mutex_lock(&bufferMutex);
-		bufferFrames.push_back(frame);
-		printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
-		if (bufferFrames.size() > MAX_FRAME_BUFFER_SIZE)
-		{
-			bufferFrames.erase(bufferFrames.begin());
-		}
-		pthread_cond_signal(&bufferCond);
-		pthread_mutex_unlock(&bufferMutex);
-		printf("1: buffer mutex unlocked\n");
 	}
 }
 
@@ -277,6 +283,7 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&resultMutex, NULL);
 	pthread_cond_init(&bufferCond, NULL);
 	pthread_cond_init(&resultCond, NULL);
+	pthread_barrier_init(&initBarrier,NULL,3);
 
 	resultReady = false;
 
