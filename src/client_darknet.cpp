@@ -131,7 +131,7 @@ void drawBoxes(Mat mat_img, vector<bbox_t> result_vec)
         }
     }
 }
-/*
+
 void *recvrend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
@@ -182,14 +182,14 @@ void *recvrend(void *fd){
 		imshow("Result", resultFrame);
 		//waitKey(5);
 	}
-} */
-
+} 
+/*
 void *recvrend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
 	
 	while(waitKey(1) < 0){
-		auto start = std::chrono::steady_clock::now();
+		//auto start = std::chrono::steady_clock::now();
 	
 		printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
@@ -249,14 +249,14 @@ void *recvrend(void *fd){
 			drawPred(className, conf, box.x, box.y, box.x + box.width, box.y + box.height, resultFrame);
 		}
 		
-		auto end = std::chrono::steady_clock::now();
-		std::chrono::duration<double> spent = end - start;
-		std::cout << " Time: " << spent.count() << " sec \n";
+		////auto end = std::chrono::steady_clock::now();
+		//std::chrono::duration<double> spent = end - start;
+		//std::cout << " Time: " << spent.count() << " sec \n";
 	
 		imshow("Result", resultFrame);
 		//waitKey(5);
 	}
-} 
+} */
 
 void *capsend(void *fd){
 	printf("capsend thread\n");

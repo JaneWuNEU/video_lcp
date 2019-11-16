@@ -78,7 +78,7 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 	newsockfd2 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 }
 
-/*void *sendResult(void *fd)
+void *sendResult(void *fd)
 {
 	printf("thread 3 started\n");
 	int sockfd = *(int *)fd;
@@ -124,9 +124,9 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 		}
 		printf("3: Result sent\n");
 	}
-} */
+} 
 
-
+/*
 void *sendResult(void *fd)
 {
 	printf("thread 3 started\n");
@@ -198,7 +198,7 @@ void *sendResult(void *fd)
 		}
 		printf("3: Result sent\n");
 	}
-} 
+}  */
 
 vector<string> objects_names_from_file(string const filename) {
     ifstream file(filename);
