@@ -38,6 +38,12 @@ struct bbox_t {
     unsigned int frames_counter;   // counter of frames on which the object was detected
     float x_3d, y_3d, z_3d;        // center of object (in Meters) if ZED 3D Camera is used
 };
+
+struct result_obj {
+    unsigned int x, y, w, h;       // (x,y) - top-left corner, (w, h) - width & height of bounded box
+    float prob;                    // confidence - probability that the object was found correctly
+    unsigned int obj_id;           // class of object - from range [0, classes-1]
+};
 	
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	int err;
@@ -114,7 +120,7 @@ void drawPred(string className, float prob, int left, int top, int right, int bo
     putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
 }
 
-void drawBoxes(Mat mat_img, vector<bbox_t> result_vec)
+void drawBoxes(Mat mat_img, vector<result_obj> result_vec)
 {
     for (auto &i : result_vec) {
         rectangle(mat_img, Point(i.x, i.y), Point(i.x+i.w, i.y+i.h), Scalar(255, 178, 50), 3);
@@ -152,7 +158,8 @@ void *recvrend(void *fd){
 		pthread_mutex_unlock(&frameMutex);
 		printf("2: frame mutex unlocked\n"); 
 		
-		vector<bbox_t> result_vec;
+		//vector<bbox_t> result_vec;
+		vector<result_obj> result_vec;
 		size_t n;
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
@@ -163,8 +170,11 @@ void *recvrend(void *fd){
 		printf("2: %zu objects found\n",n);
 		
 		for (size_t i = 0; i < n; ++i) {
-			bbox_t obj;
-			err = read(sockfd,&obj,sizeof(bbox_t));
+			//bbox_t obj;
+			//err = read(sockfd,&obj,sizeof(bbox_t));
+			
+			result_obj obj;
+			err = read(sockfd,&obj,sizeof(result_obj));
 			if (err < 0){ 
 				perror("ERROR reading from socket");
 				close(sockfd);
@@ -183,7 +193,8 @@ void *recvrend(void *fd){
 		//waitKey(5);
 	}
 } 
-/*
+
+/* each object separately
 void *recvrend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;

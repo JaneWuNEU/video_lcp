@@ -23,7 +23,7 @@
 #include "../build/darknet/include/yolo_v2_class.hpp"
 
 #define BUFF_SIZE 2048
-#define MAX_FRAME_BUFFER_SIZE 5
+#define MAX_FRAME_BUFFER_SIZE 30
 
 
 using namespace cv;
@@ -39,6 +39,12 @@ pthread_barrier_t initBarrier;
 
 vector<bbox_t> result_vec;
 bool resultReady;
+
+struct result_obj {
+    unsigned int x, y, w, h;       // (x,y) - top-left corner, (w, h) - width & height of bounded box
+    float prob;                    // confidence - probability that the object was found correctly
+    unsigned int obj_id;           // class of object - from range [0, classes-1]
+};
 
 void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv[])
 {
@@ -84,6 +90,7 @@ void *sendResult(void *fd)
 	int sockfd = *(int *)fd;
 	int err;
 	vector<bbox_t> local_result_vec;
+	result_obj curr_result_obj;
 	
 	pthread_barrier_wait(&initBarrier);
 	
@@ -114,7 +121,15 @@ void *sendResult(void *fd)
 		}
 		for (auto &i : local_result_vec)
 		{
-			err = write(sockfd, &i, sizeof(bbox_t));
+			curr_result_obj.x = i.x; 
+			curr_result_obj.y = i.y;
+			curr_result_obj.w = i.w;
+			curr_result_obj.h = i.h;
+			curr_result_obj.prob = i.prob;
+			curr_result_obj.obj_id = i.obj_id;
+			
+			err = write(sockfd, &curr_result_obj, sizeof(result_obj));
+			//err = write(sockfd, &i, sizeof(bbox_t));
 			if (err < 0)
 			{
 				perror("ERROR writing to socket");
@@ -236,7 +251,8 @@ void *getResult(void *dummy)
 			pthread_cond_wait(&bufferCond, &bufferMutex);
 		}
 		printf("2: there is a frame in buffer\n");
-		frame = bufferFrames.back().clone();
+		frame = bufferFrames.front().clone();
+		bufferFrames.erase(bufferFrames.begin());
 		pthread_mutex_unlock(&bufferMutex);
 		printf("2: buffer mutex unlocked\n");
 		
@@ -306,7 +322,7 @@ void *recvFrame(void *fd)
 			printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
 			if (bufferFrames.size() > MAX_FRAME_BUFFER_SIZE)
 			{
-				bufferFrames.erase(bufferFrames.begin());
+				bufferFrames.erase(bufferFrames.end());
 			}
 			pthread_cond_signal(&bufferCond);
 			pthread_mutex_unlock(&bufferMutex);
