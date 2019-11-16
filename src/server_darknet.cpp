@@ -86,7 +86,7 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 
 void *sendResult(void *fd)
 {
-	printf("thread 3 started\n");
+	//printf("thread 3 started\n");
 	int sockfd = *(int *)fd;
 	int err;
 	vector<bbox_t> local_result_vec;
@@ -96,22 +96,22 @@ void *sendResult(void *fd)
 	
 	while (true)
 	{
-		printf("3: waiting for result mutex\n");
+		//printf("3: waiting for result mutex\n");
 		pthread_mutex_lock(&resultMutex);
 		while (!resultReady)
 		{
-			printf("3: waiting until result is ready\n");
+			//printf("3: waiting until result is ready\n");
 			pthread_cond_wait(&resultCond, &resultMutex);
 		}
-		printf("3: copying result\n");
+		//printf("3: copying result\n");
 		local_result_vec = result_vec;
 		resultReady = false;
 		pthread_mutex_unlock(&resultMutex);
-		printf("3: result mutex unlocked\n");
+		//printf("3: result mutex unlocked\n");
 		
 		size_t n = local_result_vec.size();
 
-		printf("3: %zu objects found\n",n);
+		//printf("3: %zu objects found\n",n);
 		err = write(sockfd, &n, sizeof(size_t));
 		if (err < 0)
 		{
@@ -137,14 +137,14 @@ void *sendResult(void *fd)
 				exit(1);
 			}
 		}
-		printf("3: Result sent\n");
+		//printf("3: Result sent\n");
 	}
 } 
 
 /*
 void *sendResult(void *fd)
 {
-	printf("thread 3 started\n");
+	//printf("thread 3 started\n");
 	int sockfd = *(int *)fd;
 	int err;
 	vector<bbox_t> local_result_vec;
@@ -153,22 +153,22 @@ void *sendResult(void *fd)
 	
 	while (true)
 	{
-		printf("3: waiting for result mutex\n");
+		//printf("3: waiting for result mutex\n");
 		pthread_mutex_lock(&resultMutex);
 		while (!resultReady)
 		{
-			printf("3: waiting until result is ready\n");
+			//printf("3: waiting until result is ready\n");
 			pthread_cond_wait(&resultCond, &resultMutex);
 		}
-		printf("3: copying result\n");
+		//printf("3: copying result\n");
 		local_result_vec = result_vec;
 		resultReady = false;
 		pthread_mutex_unlock(&resultMutex);
-		printf("3: result mutex unlocked\n");
+		//printf("3: result mutex unlocked\n");
 		
 		size_t n = local_result_vec.size();
 
-		printf("3: %zu objects found\n",n);
+		//printf("3: %zu objects found\n",n);
 		err = write(sockfd, &n, sizeof(size_t));
 		if (err < 0)
 		{
@@ -211,7 +211,7 @@ void *sendResult(void *fd)
 				exit(1);
 			}
 		}
-		printf("3: Result sent\n");
+		//printf("3: Result sent\n");
 	}
 }  */
 
@@ -226,7 +226,7 @@ vector<string> objects_names_from_file(string const filename) {
 
 void *getResult(void *dummy)
 {
-	printf("thread 2 started\n");
+	//printf("thread 2 started\n");
 	int err;
 	
 	string names_file = "darknet/data/coco.names";
@@ -243,41 +243,41 @@ void *getResult(void *dummy)
 	
 	while (true)
 	{
-		printf("2: waiting for buffer mutex\n");
+		//printf("2: waiting for buffer mutex\n");
 		pthread_mutex_lock(&bufferMutex);
 		while (bufferFrames.size() <= 0)
 		{
-			printf("2: waiting for frame in buffer\n");
+			//printf("2: waiting for frame in buffer\n");
 			pthread_cond_wait(&bufferCond, &bufferMutex);
 		}
-		printf("2: there is a frame in buffer\n");
+		//printf("2: there is a frame in buffer\n");
 		frame = bufferFrames.front().clone();
 		bufferFrames.erase(bufferFrames.begin());
 		pthread_mutex_unlock(&bufferMutex);
-		printf("2: buffer mutex unlocked\n");
+		//printf("2: buffer mutex unlocked\n");
 		
 		if (!frame.empty())
 		{
 			local_result_vec = detector.detect(frame);
 		} else {
-			printf("2: frame empty, no detection\n");
+			//printf("2: frame empty, no detection\n");
 		}
-		printf("2: detection completed\n");
+		//printf("2: detection completed\n");
 
-		printf("2: waiting for result mutex\n");
+		//printf("2: waiting for result mutex\n");
 		pthread_mutex_lock(&resultMutex);
 		result_vec = local_result_vec;
 		resultReady = true;
 		pthread_cond_signal(&resultCond);
-		printf("2: result ready, signal sent\n");
+		//printf("2: result ready, signal sent\n");
 		pthread_mutex_unlock(&resultMutex);
-		printf("2: result mutex unlocked\n");
+		//printf("2: result mutex unlocked\n");
 	}
 }
 
 void *recvFrame(void *fd)
 {
-	printf("thread 1 started\n");
+	//printf("thread 1 started\n");
 	int sockfd = *(int *)fd;
 	int err;
 	size_t n;
@@ -289,7 +289,7 @@ void *recvFrame(void *fd)
 		Mat frame;
 		vector<uchar> vec;
 		err = BUFF_SIZE;
-		printf("1: start of frame reading\n" );
+		//printf("1: start of frame reading\n" );
 		
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
@@ -316,19 +316,19 @@ void *recvFrame(void *fd)
 		frame = imdecode(vec, 1);
 		if (!frame.empty())
 		{
-			printf("1: frame received and decoded\n");
+			//printf("1: frame received and decoded\n");
 			pthread_mutex_lock(&bufferMutex);
 			bufferFrames.push_back(frame);
-			printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
+			//printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
 			if (bufferFrames.size() > MAX_FRAME_BUFFER_SIZE)
 			{
 				bufferFrames.erase(bufferFrames.end());
 			}
 			pthread_cond_signal(&bufferCond);
 			pthread_mutex_unlock(&bufferMutex);
-			printf("1: buffer mutex unlocked\n");
+			//printf("1: buffer mutex unlocked\n");
 		} else {
-			printf("1: frame empty\n");
+			//printf("1: frame empty\n");
 		}
 	}
 }
