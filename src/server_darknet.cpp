@@ -97,6 +97,7 @@ void *sendResult(void *fd)
 	while (true)
 	{
 		//printf("3: waiting for result mutex\n");
+		auto start = std::chrono::steady_clock::now();
 		pthread_mutex_lock(&resultMutex);
 		while (!resultReady)
 		{
@@ -107,6 +108,9 @@ void *sendResult(void *fd)
 		local_result_vec = result_vec;
 		resultReady = false;
 		pthread_mutex_unlock(&resultMutex);
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
+		std::cout << "1: Time: " << spent.count() << " sec \n";
 		//printf("3: result mutex unlocked\n");
 		
 		size_t n = local_result_vec.size();
@@ -137,6 +141,10 @@ void *sendResult(void *fd)
 				exit(1);
 			}
 		}
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "2: Time: " << spent.count() << " sec \n";
+		
 		//printf("3: Result sent\n");
 	}
 } 
