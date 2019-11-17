@@ -33,7 +33,7 @@ struct result_obj {
 
 struct frame_obj {
 	unsigned int frame_id;
-	std::chrono::steady_clock::time_point start;
+	std::chrono::system_clock::time_point start;
 	Mat frame;
 };
 
@@ -117,8 +117,9 @@ void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigne
             putText(local_frame_obj.frame, label, Point(i.x, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
         }
     }
-	auto end = std::chrono::steady_clock::now();
+	auto end = std::chrono::system_clock::now();
 	std::chrono::duration<double> spent = end - local_frame_obj.start;
+	printf("result frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 	string label = format("Curr: %d | Inf: %d | Time: %f", curr_frame_id, local_frame_obj.frame_id, spent.count());
 	int baseLine;
     Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
@@ -149,7 +150,7 @@ void *recvrend(void *fd){
 			exit(1);
 		} 
 		
-		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
+		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
@@ -203,7 +204,7 @@ void *capsend(void *fd){
 			perror("ERROR no frame\n");
 			continue;
 		}
-		local_frame_obj.start = std::chrono::steady_clock::now();
+		local_frame_obj.start = std::chrono::system_clock::now();
 		local_frame_obj.frame_id = frame_counter;
 		frame_counter++;
 				
@@ -223,7 +224,7 @@ void *capsend(void *fd){
 			exit(1);
 		} 
 		
-		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
+		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);

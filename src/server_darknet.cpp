@@ -37,7 +37,7 @@ struct result_obj {
 
 struct frame_obj {
 	unsigned int frame_id;
-	std::chrono::steady_clock::time_point start;
+	std::chrono::system_clock::time_point start;
 	Mat frame;
 };
 
@@ -131,6 +131,9 @@ void *getSendResult(void *fd)
 				
 		local_result_vec = detector.detect(local_frame_obj.frame);
 		//printf("2: detection completed\n");
+		auto end = std::chrono::system_clock::now();
+		std::chrono::duration<double> spent = end - local_frame_obj.start;
+		printf("detected frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 		
 		size_t n = local_result_vec.size();
 		//printf("2: %zu objects found\n",n);
@@ -141,7 +144,7 @@ void *getSendResult(void *fd)
 			exit(1);
 		} 
 		
-		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
+		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
@@ -197,7 +200,7 @@ void *recvFrame(void *fd)
 			exit(1);
 		} 
 		
-		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
+		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
@@ -227,6 +230,9 @@ void *recvFrame(void *fd)
 		}
 		
 		local_frame_obj.frame = imdecode(vec, 1);
+		auto end = std::chrono::system_clock::now();
+		std::chrono::duration<double> spent = end - local_frame_obj.start;
+		printf("received frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 		if (!local_frame_obj.frame.empty())
 		{
 			//printf("1: frame received and decoded\n");
