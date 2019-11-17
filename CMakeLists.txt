@@ -16,22 +16,6 @@ set_property(TARGET ${DARKNET_LIB_NAME} PROPERTY IMPORTED_LOCATION "${DARKNET_PA
 
 add_executable( server src/server.cpp )
 add_executable( client src/client.cpp )
-add_executable( server_darknet src/server_darknet.cpp )
-add_executable( client_darknet src/client_darknet.cpp )
 
-add_executable( test_client src/test_client.cpp ) 
-add_executable( test_server src/test_server.cpp )
-add_executable( test_detection src/test_detection.cpp )
-add_executable( test_detection_darknet src/test_detection_darknet.cpp )
-add_executable( test_detection_darknet2 src/test_detection_darknet2.cpp )
-
-target_link_libraries( server ${OpenCV_LIBS} )
-target_link_libraries( client ${OpenCV_LIBS} )
-target_link_libraries( server_darknet ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
-target_link_libraries( client_darknet ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
-
-target_link_libraries( test_server ${OpenCV_LIBS} )
-target_link_libraries( test_client ${OpenCV_LIBS} )
-target_link_libraries( test_detection ${OpenCV_LIBS} )
-target_link_libraries( test_detection_darknet ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
-target_link_libraries( test_detection_darknet2 ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
+target_link_libraries( server ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
+target_link_libraries( client ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )

@@ -17,19 +17,32 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
-#include <opencv2/dnn.hpp>
 #include <opencv2/imgproc.hpp>
 
 #define BUFF_SIZE 2048
+#define MAX_FRAME_BUFFER_SIZE 30
 
 using namespace cv;
 using namespace std;
 
+struct result_obj {
+    unsigned int x, y, w, h;       // (x,y) - top-left corner, (w, h) - width & height of bounded box
+    float prob;                    // confidence - probability that the object was found correctly
+    unsigned int obj_id;           // class of object - from range [0, classes-1]
+};
+
+struct frame_obj {
+	unsigned int frame_id;
+	std::chrono::system_clock::time_point start;
+	Mat frame;
+};
+
 VideoCapture capture;
-Mat frame;
+frame_obj global_frame_obj;
 pthread_mutex_t frameMutex;
 pthread_cond_t frameCond;
-
+vector<string> obj_names;
+	
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	int err;
 	struct sockaddr_in serv_addr;
@@ -79,47 +92,152 @@ void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	}
 }
 
-void drawPred(string className, float conf, int left, int top, int right, int bottom, Mat& frame)
-{
-    //Draw a rectangle displaying the bounding box
-    rectangle(frame, Point(left, top), Point(right, bottom), Scalar(255, 178, 50), 3);
-    
-    //Get the label for the class name and its confidence
-    string label = format("%.2f", conf);
-    label = className + ":" + label;
-    
-    //Display the label at the top of the bounding box
-    int baseLine;
-    Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
-    top = max(top, labelSize.height);
-    rectangle(frame, Point(left, top - round(1.5*labelSize.height)), Point(left + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
-    putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
+vector<string> objects_names_from_file(string const filename) {
+    ifstream file(filename);
+    vector<string> file_lines;
+    if (!file.is_open()) return file_lines;
+    for(string line; getline(file, line);) file_lines.push_back(line);
+    cout << "object names loaded \n";
+    return file_lines;
 }
 
-void *capsend(void *fd){
-	printf("capsend thread\n");
+void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id)
+{
+    for (auto &i : result_vec) {
+        rectangle(local_frame_obj.frame, Point(i.x, i.y), Point(i.x+i.w, i.y+i.h), Scalar(255, 178, 50), 3);
+        if (obj_names.size() > i.obj_id) {
+            string label = format("%.2f", i.prob);
+			label = obj_names[i.obj_id] + ":" + label;
+			
+			int baseLine;
+            Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
+            int top = max((int)i.y, labelSize.height);
+
+            rectangle(local_frame_obj.frame, Point(i.x, top - round(1.5*labelSize.height)), Point(i.x + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
+            putText(local_frame_obj.frame, label, Point(i.x, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
+        }
+    }
+	auto end = std::chrono::system_clock::now();
+	std::chrono::duration<double> spent = end - local_frame_obj.start;
+	printf("result frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
+	string label = format("Curr: %d | Inf: %d | Time: %f", curr_frame_id, local_frame_obj.frame_id, spent.count());
+	int baseLine;
+    Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
+	int top = max(20, labelSize.height);
+    rectangle(local_frame_obj.frame, Point(0,0), Point(round(1.5*labelSize.width), top+baseLine), Scalar(255, 255, 255), FILLED);
+    putText(local_frame_obj.frame, label, Point(0, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
+}
+
+void *recvrend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
-	std::vector<uchar> vec;
 	
-	while(true){//waitKey(1) < 0){
-		printf("1: waiting for frame mutex\n");
+	pthread_mutex_lock(&frameMutex);
+	while(global_frame_obj.frame.empty()){
+		//printf("2: waiting for captured frame\n");
+		pthread_cond_wait(&frameCond, &frameMutex);
+	}
+	pthread_mutex_unlock(&frameMutex);
+	
+	while(waitKey(1) < 0){
+		frame_obj local_frame_obj;
+		vector<result_obj> result_vec;
+		
+		err = read(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		size_t n;
+		err = read(sockfd,&n,sizeof(size_t));
+		if (err < 0){ 
+			perror("ERROR reading from socket");
+			close(sockfd);
+			exit(1);
+		}
+		//printf("2: %zu objects found\n",n);
+		
+		for (size_t i = 0; i < n; ++i) {
+			result_obj obj;
+			err = read(sockfd,&obj,sizeof(result_obj));
+			if (err < 0){ 
+				perror("ERROR reading from socket");
+				close(sockfd);
+				exit(1);
+			}
+			result_vec.push_back(obj);
+		}
+		
+		//printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
-		printf("1: lock aquired\n");
-		capture.read(frame);
-		printf("1: frame captured\n");
+		local_frame_obj.frame = global_frame_obj.frame.clone();
+		unsigned int curr_frame_id = global_frame_obj.frame_id;
+		pthread_mutex_unlock(&frameMutex);
+		//printf("2: frame mutex unlocked\n"); 
+		
+		drawBoxes(local_frame_obj, result_vec, curr_frame_id);
+		
+		imshow("Result", local_frame_obj.frame);
+		//waitKey(5);
+	}
+} 
+
+void *capsend(void *fd){
+	int sockfd = *(int*)fd;
+	int err;
+	vector<uchar> vec;
+	int frame_counter = 0;
+	frame_obj local_frame_obj;
 	
-		if (frame.empty()) {
+	while(true){
+		capture.read(local_frame_obj.frame);
+		if (local_frame_obj.frame.empty()) {
 			perror("ERROR no frame\n");
-			pthread_mutex_unlock(&frameMutex);
 			continue;
 		}
+		local_frame_obj.start = std::chrono::system_clock::now();
+		local_frame_obj.frame_id = frame_counter;
+		frame_counter++;
+				
+		//printf("1: waiting for frame mutex\n");
+		pthread_mutex_lock(&frameMutex);
+		global_frame_obj = local_frame_obj;
 		pthread_cond_signal(&frameCond);
-		printf("1: frame exisits, signal sent\n");
 		pthread_mutex_unlock(&frameMutex);
+		//printf("1: frame mutex unlocked\n");
 		
-		printf("1: frame mutex unlocked\n");
-		imencode(".jpg", frame, vec);
+		imencode(".jpg", local_frame_obj.frame, vec);
+		
+		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		size_t n = vec.size();
+		err = write(sockfd, &n, sizeof(size_t));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
 		
 		err = write(sockfd, vec.data(), vec.size());
 		if (err < 0){
@@ -128,73 +246,6 @@ void *capsend(void *fd){
 			exit(1);
 		} 
 		//imshow("Live", frame);
-	}
-}
-
-void *recvrend(void *fd){
-	int sockfd = *(int*)fd;
-	int err;
-	
-	while(waitKey(1) < 0){
-		printf("2: waiting for frame mutex\n");
-		pthread_mutex_lock(&frameMutex);
-		while(frame.empty()){
-			printf("2: waiting for captured frame\n");
-			pthread_cond_wait(&frameCond, &frameMutex);
-		}
-		printf("2: there is a frame captured\n");
-		Mat resultFrame = frame.clone();
-		pthread_mutex_unlock(&frameMutex);
-		
-		printf("2: frame mutex unlocked\n"); 
-		size_t n;
-		err = read(sockfd,&n,sizeof(size_t));
-		if (err < 0){ 
-			perror("ERROR reading from socket");
-			close(sockfd);
-			exit(1);
-		}
-		printf("2: %zu objects found\n",n);
-		
-		for (size_t i = 0; i < n; ++i) {
-			size_t len;
-			string className;
-			float conf;
-			Rect box;
-			char *buf;
-			err = read(sockfd,&len,sizeof(size_t));
-			if (err < 0){ 
-				perror("ERROR reading from socket");
-				close(sockfd);
-				exit(1);
-			}
-			buf = new char[len];
-			err = read(sockfd,buf,len);
-			if (err < 0){ 
-				perror("ERROR reading from socket");
-				close(sockfd);
-				exit(1);
-			}
-			className.assign(buf,len);
-			delete []buf;
-			err = read(sockfd,&conf,sizeof(float));
-			if (err < 0){ 
-				perror("ERROR reading from socket");
-				close(sockfd);
-				exit(1);
-			}
-			err = read(sockfd,&box,sizeof(Rect));
-			if (err < 0){ 
-				perror("ERROR reading from socket");
-				close(sockfd);
-				exit(1);
-			}
-			
-			
-			drawPred(className, conf, box.x, box.y, box.x + box.width, box.y + box.height, resultFrame);
-		}
-		imshow("Result", resultFrame);
-		//waitKey(5);
 	}
 }
 
@@ -221,6 +272,9 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 	}
+	
+	string names_file = "darknet/data/coco.names";
+	obj_names = objects_names_from_file(names_file);
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_cond_init(&frameCond, NULL);
