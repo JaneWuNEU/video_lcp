@@ -150,14 +150,20 @@ void *recvrend(void *fd){
 	pthread_mutex_unlock(&frameMutex);
 	
 	while(waitKey(1) < 0){
-		//auto start = std::chrono::steady_clock::now();
+		auto start = std::chrono::steady_clock::now();
 	
 		//printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
+		std::cout << "2: locked Time: " << spent.count() << " sec \n";
 		Mat resultFrame = frame.clone();
 		pthread_mutex_unlock(&frameMutex);
 		//printf("2: frame mutex unlocked\n"); 
 		
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "2: unlocked Time: " << spent.count() << " sec \n";
 		//vector<bbox_t> result_vec;
 		vector<result_obj> result_vec;
 		size_t n;
@@ -182,12 +188,17 @@ void *recvrend(void *fd){
 			}
 			result_vec.push_back(obj);
 		}
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "2: result read Time: " << spent.count() << " sec \n";
 		
 		drawBoxes(resultFrame, result_vec);
 		
-		//auto end = std::chrono::steady_clock::now();
-		//std::chrono::duration<double> spent = end - start;
-		//std::cout << " Time: " << spent.count() << " sec \n";
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "2: result rend Time: " << spent.count() << " sec \n";
+		
+		
 	
 		imshow("Result", resultFrame);
 		//waitKey(5);
@@ -276,20 +287,39 @@ void *capsend(void *fd){
 	vector<uchar> vec;
 	
 	while(true){//waitKey(1) < 0){
+		auto start = std::chrono::steady_clock::now();
+		Mat local_frame;
+		capture.read(local_frame);
+		if (local_frame.empty()) {
+			perror("ERROR no frame\n");
+			continue;
+		}
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
+		std::cout << "1: frame read Time: " << spent.count() << " sec \n";
+		
 		//printf("1: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "1: locked Time: " << spent.count() << " sec \n";
+		
 		//printf("1: lock aquired\n");
-		capture.read(frame);
+		//capture.read(frame);
+		frame = local_frame;
 		//printf("1: frame captured\n");
 	
-		if (frame.empty()) {
+/*		if (frame.empty()) {
 			perror("ERROR no frame\n");
 			pthread_mutex_unlock(&frameMutex);
 			continue;
-		}
+		} */
 		pthread_cond_signal(&frameCond);
 		//printf("1: frame exisits, signal sent\n");
 		pthread_mutex_unlock(&frameMutex);
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "1: unlocked Time: " << spent.count() << " sec \n";
 		
 		//printf("1: frame mutex unlocked\n");
 		imencode(".jpg", frame, vec);
@@ -309,6 +339,9 @@ void *capsend(void *fd){
 			exit(1);
 		} 
 		//imshow("Live", frame);
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "1: image written Time: " << spent.count() << " sec \n";
 	}
 }
 

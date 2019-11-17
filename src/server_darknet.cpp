@@ -286,7 +286,7 @@ void *getResult(void *dummy)
 
 void *getSendResult(void *fd)
 {
-	//printf("thread 3 started\n");
+	//printf("thread 2 started\n");
 	int sockfd = *(int *)fd;
 	int err;
 	
@@ -308,6 +308,9 @@ void *getSendResult(void *fd)
 		//printf("2: waiting for buffer mutex\n");
 		auto start = std::chrono::steady_clock::now();
 		pthread_mutex_lock(&bufferMutex);
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
+		std::cout << "2: locked Time: " << spent.count() << " sec \n";
 		while (bufferFrames.size() <= 0)
 		{
 			//printf("2: waiting for frame in buffer\n");
@@ -318,10 +321,10 @@ void *getSendResult(void *fd)
 		bufferFrames.erase(bufferFrames.begin());
 		pthread_mutex_unlock(&bufferMutex);
 		//printf("2: buffer mutex unlocked\n");
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "2: unlocked Time: " << spent.count() << " sec \n";
 		
-		auto end = std::chrono::steady_clock::now();
-		std::chrono::duration<double> spent = end - start;
-		std::cout << "1: Time: " << spent.count() << " sec \n";
 		
 		if (!frame.empty())
 		{
@@ -333,7 +336,7 @@ void *getSendResult(void *fd)
 		
 		end = std::chrono::steady_clock::now();
 		spent = end - start;
-		std::cout << "2: Time: " << spent.count() << " sec \n";
+		std::cout << "2: detected Time: " << spent.count() << " sec \n";
 
 		size_t n = local_result_vec.size();
 
@@ -365,7 +368,7 @@ void *getSendResult(void *fd)
 		}
 		end = std::chrono::steady_clock::now();
 		spent = end - start;
-		std::cout << "3: Time: " << spent.count() << " sec \n";
+		std::cout << "2: result send Time: " << spent.count() << " sec \n";
 	}
 }
 
@@ -380,6 +383,7 @@ void *recvFrame(void *fd)
 
 	while (true)
 	{
+		auto start = std::chrono::steady_clock::now();
 		Mat frame;
 		vector<uchar> vec;
 		err = BUFF_SIZE;
@@ -406,12 +410,21 @@ void *recvFrame(void *fd)
 			vec.insert(vec.end(), buffer, buffer + err);
 			curr += err;
 		}
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
+		std::cout << "1: frame read Time: " << spent.count() << " sec \n";
 
 		frame = imdecode(vec, 1);
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "1: frame decoded Time: " << spent.count() << " sec \n";
 		if (!frame.empty())
 		{
 			//printf("1: frame received and decoded\n");
 			pthread_mutex_lock(&bufferMutex);
+			end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "1: locked Time: " << spent.count() << " sec \n";
 			bufferFrames.push_back(frame);
 			//printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
 			if (bufferFrames.size() > MAX_FRAME_BUFFER_SIZE)
@@ -420,6 +433,9 @@ void *recvFrame(void *fd)
 			}
 			pthread_cond_signal(&bufferCond);
 			pthread_mutex_unlock(&bufferMutex);
+			end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "1: unlocked Time: " << spent.count() << " sec \n";
 			//printf("1: buffer mutex unlocked\n");
 		} else {
 			//printf("1: frame empty\n");
