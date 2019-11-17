@@ -25,21 +25,6 @@
 using namespace cv;
 using namespace std;
 
-VideoCapture capture;
-Mat frame;
-pthread_mutex_t frameMutex;
-pthread_cond_t frameCond;
-vector<string> obj_names;
-
-struct bbox_t {
-    unsigned int x, y, w, h;       // (x,y) - top-left corner, (w, h) - width & height of bounded box
-    float prob;                    // confidence - probability that the object was found correctly
-    unsigned int obj_id;           // class of object - from range [0, classes-1]
-    unsigned int track_id;         // tracking id for video (0 - untracked, 1 - inf - tracked object)
-    unsigned int frames_counter;   // counter of frames on which the object was detected
-    float x_3d, y_3d, z_3d;        // center of object (in Meters) if ZED 3D Camera is used
-};
-
 struct result_obj {
     unsigned int x, y, w, h;       // (x,y) - top-left corner, (w, h) - width & height of bounded box
     float prob;                    // confidence - probability that the object was found correctly
@@ -51,8 +36,12 @@ struct frame_obj {
 	std::chrono::steady_clock::time_point start;
 	Mat frame;
 };
+
+VideoCapture capture;
 frame_obj global_frame_obj;
-vector<frame_obj> frame_buffer;
+pthread_mutex_t frameMutex;
+pthread_cond_t frameCond;
+vector<string> obj_names;
 	
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	int err;
@@ -112,23 +101,6 @@ vector<string> objects_names_from_file(string const filename) {
     return file_lines;
 }
 
-void drawPred(string className, float prob, int left, int top, int right, int bottom, Mat& frame)
-{
-    //Draw a rectangle displaying the bounding box
-    rectangle(frame, Point(left, top), Point(right, bottom), Scalar(255, 178, 50), 3);
-    
-    //Get the label for the class name and its confidence
-    string label = format("%.2f", prob);
-    label = className + ":" + label;
-    
-    //Display the label at the top of the bounding box
-    int baseLine;
-    Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
-    top = max(top, labelSize.height);
-    rectangle(frame, Point(left, top - round(1.5*labelSize.height)), Point(left + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
-    putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
-}
-
 void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id)
 {
     for (auto &i : result_vec) {
@@ -141,8 +113,8 @@ void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigne
             Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
             int top = max((int)i.y, labelSize.height);
 
-            rectangle(local_frame_obj.frame, Point(i.x, i.y - round(1.5*labelSize.height)), Point(i.x + round(1.5*labelSize.width), i.y + baseLine), Scalar(255, 255, 255), FILLED);
-            putText(local_frame_obj.frame, label, Point(i.x, i.y), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
+            rectangle(local_frame_obj.frame, Point(i.x, top - round(1.5*labelSize.height)), Point(i.x + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
+            putText(local_frame_obj.frame, label, Point(i.x, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
         }
     }
 	auto end = std::chrono::steady_clock::now();
@@ -150,10 +122,9 @@ void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigne
 	string label = format("Curr: %d | Inf: %d | Time: %f", curr_frame_id, local_frame_obj.frame_id, spent.count());
 	int baseLine;
     Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
-    int top = max((int)local_frame_obj.frame.rows, labelSize.height);
-
-    rectangle(local_frame_obj.frame, Point(0,local_frame_obj.frame.rows), Point(round(1.5*labelSize.width), local_frame_obj.frame.rows+baseLine), Scalar(255, 255, 255), FILLED);
-    putText(local_frame_obj.frame, label, Point(0, local_frame_obj.frame.rows), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
+	int top = max(20, labelSize.height);
+    rectangle(local_frame_obj.frame, Point(0,0), Point(round(1.5*labelSize.width), top+baseLine), Scalar(255, 255, 255), FILLED);
+    putText(local_frame_obj.frame, label, Point(0, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
 }
 
 void *recvrend(void *fd){
@@ -168,9 +139,6 @@ void *recvrend(void *fd){
 	pthread_mutex_unlock(&frameMutex);
 	
 	while(waitKey(1) < 0){
-		auto start = std::chrono::steady_clock::now();
-		
-		//vector<bbox_t> result_vec;
 		frame_obj local_frame_obj;
 		vector<result_obj> result_vec;
 		
@@ -180,7 +148,6 @@ void *recvrend(void *fd){
 			close(sockfd);
 			exit(1);
 		} 
-		printf("2: received frame number : %d\n", local_frame_obj.frame_id);
 		
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
 		if (err < 0){
@@ -199,9 +166,6 @@ void *recvrend(void *fd){
 		//printf("2: %zu objects found\n",n);
 		
 		for (size_t i = 0; i < n; ++i) {
-			//bbox_t obj;
-			//err = read(sockfd,&obj,sizeof(bbox_t));
-			
 			result_obj obj;
 			err = read(sockfd,&obj,sizeof(result_obj));
 			if (err < 0){ 
@@ -211,125 +175,29 @@ void *recvrend(void *fd){
 			}
 			result_vec.push_back(obj);
 		}
-		auto end = std::chrono::steady_clock::now();
-		std::chrono::duration<double> spent = end - start;
-		std::cout << "2: result read Time: " << spent.count() << " sec \n";
 		
 		//printf("2: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
-		std::cout << "2: locked Time: " << spent.count() << " sec \n";
 		local_frame_obj.frame = global_frame_obj.frame.clone();
 		unsigned int curr_frame_id = global_frame_obj.frame_id;
-		//Mat resultFrame = frame.clone();
 		pthread_mutex_unlock(&frameMutex);
 		//printf("2: frame mutex unlocked\n"); 
 		
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
-		std::cout << "2: unlocked Time: " << spent.count() << " sec \n";
-		
 		drawBoxes(local_frame_obj, result_vec, curr_frame_id);
 		
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
-		std::cout << "2: result rend Time: " << spent.count() << " sec \n";
-		
-		
-	
 		imshow("Result", local_frame_obj.frame);
 		//waitKey(5);
 	}
 } 
 
-/* each object separately
-void *recvrend(void *fd){
-	int sockfd = *(int*)fd;
-	int err;
-	
-	while(waitKey(1) < 0){
-		//auto start = std::chrono::steady_clock::now();
-	
-		//printf("2: waiting for frame mutex\n");
-		pthread_mutex_lock(&frameMutex);
-		while(frame.empty()){
-			//printf("2: waiting for captured frame\n");
-			pthread_cond_wait(&frameCond, &frameMutex);
-		}
-		//printf("2: there is a frame captured\n");
-		Mat resultFrame = frame.clone();
-		pthread_mutex_unlock(&frameMutex);
-		
-		//printf("2: frame mutex unlocked\n"); 
-		size_t n;
-		err = read(sockfd,&n,sizeof(size_t));
-		if (err < 0){ 
-			perror("ERROR reading from socket");
-			close(sockfd);
-			exit(1);
-		}
-		//printf("2: %zu objects found\n",n);
-		
-		for (size_t i = 0; i < n; ++i) {
-			size_t len;
-			string className;
-			float conf;
-			Rect box;
-			char *buf;
-			err = read(sockfd,&len,sizeof(size_t));
-			if (err < 0){ 
-				perror("ERROR reading from socket");
-				close(sockfd);
-				exit(1);
-			}
-			buf = new char[len];
-			err = read(sockfd,buf,len);
-			if (err < 0){ 
-				perror("ERROR reading from socket");
-				close(sockfd);
-				exit(1);
-			}
-			className.assign(buf,len);
-			delete []buf;
-			err = read(sockfd,&conf,sizeof(float));
-			if (err < 0){ 
-				perror("ERROR reading from socket");
-				close(sockfd);
-				exit(1);
-			}
-			err = read(sockfd,&box,sizeof(Rect));
-			if (err < 0){ 
-				perror("ERROR reading from socket");
-				close(sockfd);
-				exit(1);
-			}
-			
-			
-			drawPred(className, conf, box.x, box.y, box.x + box.width, box.y + box.height, resultFrame);
-		}
-		
-		////auto end = std::chrono::steady_clock::now();
-		//std::chrono::duration<double> spent = end - start;
-		//std::cout << " Time: " << spent.count() << " sec \n";
-	
-		imshow("Result", resultFrame);
-		//waitKey(5);
-	}
-} */
-
 void *capsend(void *fd){
-	//printf("capsend thread\n");
 	int sockfd = *(int*)fd;
 	int err;
 	vector<uchar> vec;
 	int frame_counter = 0;
+	frame_obj local_frame_obj;
 	
-	while(true){//waitKey(1) < 0){
-		auto start = std::chrono::steady_clock::now();
-		frame_obj local_frame_obj;
-		//Mat local_frame;
-		//capture.read(local_frame);
+	while(true){
 		capture.read(local_frame_obj.frame);
 		if (local_frame_obj.frame.empty()) {
 			perror("ERROR no frame\n");
@@ -338,42 +206,14 @@ void *capsend(void *fd){
 		local_frame_obj.start = std::chrono::steady_clock::now();
 		local_frame_obj.frame_id = frame_counter;
 		frame_counter++;
-		auto end = std::chrono::steady_clock::now();
-		std::chrono::duration<double> spent = end - start;
-		std::cout << "1: frame read Time: " << spent.count() << " sec \n";
-		
+				
 		//printf("1: waiting for frame mutex\n");
 		pthread_mutex_lock(&frameMutex);
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
-		std::cout << "1: locked Time: " << spent.count() << " sec \n";
-		
-		//printf("1: lock aquired\n");
-		//capture.read(frame);
-		//frame = local_frame;
-		
 		global_frame_obj = local_frame_obj;
-		/*frame_buffer.push_back(local_frame_obj);
-		if (frame_buffer.size() > MAX_FRAME_BUFFER_SIZE)
-		{
-			frame_buffer.erase(frame_buffer.end());
-		}*/
-		
-		//printf("1: frame captured\n");
-	
-/*		if (frame.empty()) {
-			perror("ERROR no frame\n");
-			pthread_mutex_unlock(&frameMutex);
-			continue;
-		} */
 		pthread_cond_signal(&frameCond);
-		//printf("1: frame exisits, signal sent\n");
 		pthread_mutex_unlock(&frameMutex);
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
-		std::cout << "1: unlocked Time: " << spent.count() << " sec \n";
-		
 		//printf("1: frame mutex unlocked\n");
+		
 		imencode(".jpg", local_frame_obj.frame, vec);
 		
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
@@ -405,9 +245,6 @@ void *capsend(void *fd){
 			exit(1);
 		} 
 		//imshow("Live", frame);
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
-		std::cout << "1: image written Time: " << spent.count() << " sec \n";
 	}
 }
 
