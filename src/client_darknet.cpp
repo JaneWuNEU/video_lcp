@@ -20,6 +20,7 @@
 #include <opencv2/imgproc.hpp>
 
 #define BUFF_SIZE 2048
+#define MAX_FRAME_BUFFER_SIZE 30
 
 using namespace cv;
 using namespace std;
@@ -44,6 +45,14 @@ struct result_obj {
     float prob;                    // confidence - probability that the object was found correctly
     unsigned int obj_id;           // class of object - from range [0, classes-1]
 };
+
+struct frame_obj {
+	unsigned int frame_id;
+	std::chrono::steady_clock::time_point start;
+	Mat frame;
+};
+frame_obj global_frame_obj;
+vector<frame_obj> frame_buffer;
 	
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	int err;
@@ -120,10 +129,10 @@ void drawPred(string className, float prob, int left, int top, int right, int bo
     putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
 }
 
-void drawBoxes(Mat mat_img, vector<result_obj> result_vec)
+void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id)
 {
     for (auto &i : result_vec) {
-        rectangle(mat_img, Point(i.x, i.y), Point(i.x+i.w, i.y+i.h), Scalar(255, 178, 50), 3);
+        rectangle(local_frame_obj.frame, Point(i.x, i.y), Point(i.x+i.w, i.y+i.h), Scalar(255, 178, 50), 3);
         if (obj_names.size() > i.obj_id) {
             string label = format("%.2f", i.prob);
 			label = obj_names[i.obj_id] + ":" + label;
@@ -132,10 +141,19 @@ void drawBoxes(Mat mat_img, vector<result_obj> result_vec)
             Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
             int top = max((int)i.y, labelSize.height);
 
-            rectangle(mat_img, Point(i.x, i.y - round(1.5*labelSize.height)), Point(i.x + round(1.5*labelSize.width), i.y + baseLine), Scalar(255, 255, 255), FILLED);
-            putText(mat_img, label, Point2f(i.x, i.y), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
+            rectangle(local_frame_obj.frame, Point(i.x, i.y - round(1.5*labelSize.height)), Point(i.x + round(1.5*labelSize.width), i.y + baseLine), Scalar(255, 255, 255), FILLED);
+            putText(local_frame_obj.frame, label, Point(i.x, i.y), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
         }
     }
+	auto end = std::chrono::steady_clock::now();
+	std::chrono::duration<double> spent = end - local_frame_obj.start;
+	string label = format("Curr: %d | Inf: %d | Time: %f", curr_frame_id, local_frame_obj.frame_id, spent.count());
+	int baseLine;
+    Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
+    int top = max((int)local_frame_obj.frame.rows, labelSize.height);
+
+    rectangle(local_frame_obj.frame, Point(0,local_frame_obj.frame.rows), Point(round(1.5*labelSize.width), local_frame_obj.frame.rows+baseLine), Scalar(255, 255, 255), FILLED);
+    putText(local_frame_obj.frame, label, Point(0, local_frame_obj.frame.rows), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
 }
 
 void *recvrend(void *fd){
@@ -143,7 +161,7 @@ void *recvrend(void *fd){
 	int err;
 	
 	pthread_mutex_lock(&frameMutex);
-	while(frame.empty()){
+	while(global_frame_obj.frame.empty()){
 		//printf("2: waiting for captured frame\n");
 		pthread_cond_wait(&frameCond, &frameMutex);
 	}
@@ -151,21 +169,26 @@ void *recvrend(void *fd){
 	
 	while(waitKey(1) < 0){
 		auto start = std::chrono::steady_clock::now();
-	
-		//printf("2: waiting for frame mutex\n");
-		pthread_mutex_lock(&frameMutex);
-		auto end = std::chrono::steady_clock::now();
-		std::chrono::duration<double> spent = end - start;
-		std::cout << "2: locked Time: " << spent.count() << " sec \n";
-		Mat resultFrame = frame.clone();
-		pthread_mutex_unlock(&frameMutex);
-		//printf("2: frame mutex unlocked\n"); 
 		
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
-		std::cout << "2: unlocked Time: " << spent.count() << " sec \n";
 		//vector<bbox_t> result_vec;
+		frame_obj local_frame_obj;
 		vector<result_obj> result_vec;
+		
+		err = read(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		printf("2: received frame number : %d\n", local_frame_obj.frame_id);
+		
+		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
 		size_t n;
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
@@ -188,11 +211,26 @@ void *recvrend(void *fd){
 			}
 			result_vec.push_back(obj);
 		}
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> spent = end - start;
 		std::cout << "2: result read Time: " << spent.count() << " sec \n";
 		
-		drawBoxes(resultFrame, result_vec);
+		//printf("2: waiting for frame mutex\n");
+		pthread_mutex_lock(&frameMutex);
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "2: locked Time: " << spent.count() << " sec \n";
+		local_frame_obj.frame = global_frame_obj.frame.clone();
+		unsigned int curr_frame_id = global_frame_obj.frame_id;
+		//Mat resultFrame = frame.clone();
+		pthread_mutex_unlock(&frameMutex);
+		//printf("2: frame mutex unlocked\n"); 
+		
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << "2: unlocked Time: " << spent.count() << " sec \n";
+		
+		drawBoxes(local_frame_obj, result_vec, curr_frame_id);
 		
 		end = std::chrono::steady_clock::now();
 		spent = end - start;
@@ -200,7 +238,7 @@ void *recvrend(void *fd){
 		
 		
 	
-		imshow("Result", resultFrame);
+		imshow("Result", local_frame_obj.frame);
 		//waitKey(5);
 	}
 } 
@@ -285,15 +323,21 @@ void *capsend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
 	vector<uchar> vec;
+	int frame_counter = 0;
 	
 	while(true){//waitKey(1) < 0){
 		auto start = std::chrono::steady_clock::now();
-		Mat local_frame;
-		capture.read(local_frame);
-		if (local_frame.empty()) {
+		frame_obj local_frame_obj;
+		//Mat local_frame;
+		//capture.read(local_frame);
+		capture.read(local_frame_obj.frame);
+		if (local_frame_obj.frame.empty()) {
 			perror("ERROR no frame\n");
 			continue;
 		}
+		local_frame_obj.start = std::chrono::steady_clock::now();
+		local_frame_obj.frame_id = frame_counter;
+		frame_counter++;
 		auto end = std::chrono::steady_clock::now();
 		std::chrono::duration<double> spent = end - start;
 		std::cout << "1: frame read Time: " << spent.count() << " sec \n";
@@ -306,7 +350,15 @@ void *capsend(void *fd){
 		
 		//printf("1: lock aquired\n");
 		//capture.read(frame);
-		frame = local_frame;
+		//frame = local_frame;
+		
+		global_frame_obj = local_frame_obj;
+		/*frame_buffer.push_back(local_frame_obj);
+		if (frame_buffer.size() > MAX_FRAME_BUFFER_SIZE)
+		{
+			frame_buffer.erase(frame_buffer.end());
+		}*/
+		
 		//printf("1: frame captured\n");
 	
 /*		if (frame.empty()) {
@@ -322,7 +374,21 @@ void *capsend(void *fd){
 		std::cout << "1: unlocked Time: " << spent.count() << " sec \n";
 		
 		//printf("1: frame mutex unlocked\n");
-		imencode(".jpg", frame, vec);
+		imencode(".jpg", local_frame_obj.frame, vec);
+		
+		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
 		
 		size_t n = vec.size();
 		err = write(sockfd, &n, sizeof(size_t));

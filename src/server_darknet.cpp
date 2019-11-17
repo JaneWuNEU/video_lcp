@@ -46,6 +46,13 @@ struct result_obj {
     unsigned int obj_id;           // class of object - from range [0, classes-1]
 };
 
+struct frame_obj {
+	unsigned int frame_id;
+	std::chrono::steady_clock::time_point start;
+	Mat frame;
+};
+vector<frame_obj> frame_buffer;
+
 void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv[])
 {
 	int err;
@@ -297,7 +304,7 @@ void *getSendResult(void *fd)
 	Detector detector(cfg_file, weights_file);
     obj_names = objects_names_from_file(names_file);
 	
-	Mat frame;
+	frame_obj local_frame_obj;
 	vector<bbox_t> local_result_vec;
 	result_obj curr_result_obj;
 	
@@ -311,14 +318,14 @@ void *getSendResult(void *fd)
 		auto end = std::chrono::steady_clock::now();
 		std::chrono::duration<double> spent = end - start;
 		std::cout << "2: locked Time: " << spent.count() << " sec \n";
-		while (bufferFrames.size() <= 0)
+		while (frame_buffer.size() <= 0)
 		{
 			//printf("2: waiting for frame in buffer\n");
 			pthread_cond_wait(&bufferCond, &bufferMutex);
 		}
 		//printf("2: there is a frame in buffer\n");
-		frame = bufferFrames.front().clone();
-		bufferFrames.erase(bufferFrames.begin());
+		local_frame_obj = frame_buffer.front();
+		frame_buffer.erase(frame_buffer.begin());
 		pthread_mutex_unlock(&bufferMutex);
 		//printf("2: buffer mutex unlocked\n");
 		end = std::chrono::steady_clock::now();
@@ -326,9 +333,9 @@ void *getSendResult(void *fd)
 		std::cout << "2: unlocked Time: " << spent.count() << " sec \n";
 		
 		
-		if (!frame.empty())
+		if (!local_frame_obj.frame.empty())
 		{
-			local_result_vec = detector.detect(frame);
+			local_result_vec = detector.detect(local_frame_obj.frame);
 		} else {
 			//printf("2: frame empty, no detection\n");
 		}
@@ -337,10 +344,28 @@ void *getSendResult(void *fd)
 		end = std::chrono::steady_clock::now();
 		spent = end - start;
 		std::cout << "2: detected Time: " << spent.count() << " sec \n";
+		
+		end = std::chrono::steady_clock::now();
+		spent = end - local_frame_obj.start;
+		std::cout << "2: frame is this old :::::: " << spent.count() << " sec \n";
 
 		size_t n = local_result_vec.size();
 
 		//printf("3: %zu objects found\n",n);
+		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
 		err = write(sockfd, &n, sizeof(size_t));
 		if (err < 0)
 		{
@@ -384,10 +409,24 @@ void *recvFrame(void *fd)
 	while (true)
 	{
 		auto start = std::chrono::steady_clock::now();
-		Mat frame;
+		frame_obj local_frame_obj;
 		vector<uchar> vec;
 		err = BUFF_SIZE;
 		//printf("1: start of frame reading\n" );
+		
+		err = read(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::steady_clock::time_point));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
 		
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
@@ -414,22 +453,27 @@ void *recvFrame(void *fd)
 		std::chrono::duration<double> spent = end - start;
 		std::cout << "1: frame read Time: " << spent.count() << " sec \n";
 
-		frame = imdecode(vec, 1);
+		local_frame_obj.frame = imdecode(vec, 1);
 		end = std::chrono::steady_clock::now();
 		spent = end - start;
 		std::cout << "1: frame decoded Time: " << spent.count() << " sec \n";
-		if (!frame.empty())
+		end = std::chrono::steady_clock::now();
+		spent = end - local_frame_obj.start;
+		std::cout << "1: frame is this old :::::: " << spent.count() << " sec \n";
+		
+		if (!local_frame_obj.frame.empty())
 		{
 			//printf("1: frame received and decoded\n");
 			pthread_mutex_lock(&bufferMutex);
 			end = std::chrono::steady_clock::now();
 		spent = end - start;
 		std::cout << "1: locked Time: " << spent.count() << " sec \n";
-			bufferFrames.push_back(frame);
+			frame_buffer.push_back(local_frame_obj);
+			//bufferFrames.push_back(frame);
 			//printf("1: there are now %zu frames in buffer\n",bufferFrames.size());
-			if (bufferFrames.size() > MAX_FRAME_BUFFER_SIZE)
+			if (frame_buffer.size() > MAX_FRAME_BUFFER_SIZE)
 			{
-				bufferFrames.erase(bufferFrames.end());
+				frame_buffer.erase(frame_buffer.end());
 			}
 			pthread_cond_signal(&bufferCond);
 			pthread_mutex_unlock(&bufferMutex);
