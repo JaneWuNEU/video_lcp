@@ -128,6 +128,26 @@ void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigne
     putText(local_frame_obj.frame, label, Point(0, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
 }
 
+void consoleOutput(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id)
+{
+    auto end = std::chrono::system_clock::now();
+	std::chrono::duration<double> spent = end - local_frame_obj.start;
+	printf("------------------------------------------------------------\n");
+	printf("Received inference result from frame %d\n",local_frame_obj.frame_id);
+	printf("Frame %d was captured %f seconds ago\n",local_frame_obj.frame_id,spent.count());
+	printf("Currently captured frame %d is %d frames newer\n",curr_frame_id, curr_frame_id - local_frame_obj.frame_id);
+	printf("A total of %zu objects have been recognized\n", result_vec.size());
+	
+	for (auto &i : result_vec) {
+        if (obj_names.size() > i.obj_id) {
+            string label = format("%.2f", i.prob);
+			label = obj_names[i.obj_id] + ":" + label;
+			cout << label << "\n";
+		}
+	}
+	printf("\n");
+}
+
 void *recvrend(void *fd){
 	int sockfd = *(int*)fd;
 	int err;
@@ -184,10 +204,9 @@ void *recvrend(void *fd){
 		pthread_mutex_unlock(&frameMutex);
 		//printf("2: frame mutex unlocked\n"); 
 		
+		//consoleOutput(local_frame_obj, result_vec, curr_frame_id);
 		drawBoxes(local_frame_obj, result_vec, curr_frame_id);
-		
 		imshow("Result", local_frame_obj.frame);
-		//waitKey(5);
 	}
 } 
 
