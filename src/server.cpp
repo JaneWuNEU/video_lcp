@@ -29,12 +29,14 @@
 using namespace cv;
 using namespace std;
 
+// object that is returned by the server in which information on a detected object is stored
 struct result_obj {
-    unsigned int x, y, w, h;       // (x,y) - top-left corner, (w, h) - width & height of bounded box
-    float prob;                    // confidence - probability that the object was found correctly
-    unsigned int obj_id;           // class of object - from range [0, classes-1]
+    unsigned int x, y, w, h;       
+    float prob;                    
+    unsigned int obj_id;          
 };
 
+// frame object that stores all the information about a frame
 struct frame_obj {
 	unsigned int frame_id;
 	std::chrono::system_clock::time_point start;
@@ -49,15 +51,14 @@ pthread_mutex_t bufferMutex;
 pthread_cond_t bufferCond;
 pthread_barrier_t initBarrier;
 
-void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv[])
-{
+// make a connection to the client and open two sockets one for sending data, one for receiving data
+void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv[]) {
 	int err;
 	struct sockaddr_in servAddr, clientAddr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd < 0)
-	{
+	if (sockfd < 0){
 		perror("failed to open socket.\n");
 		close(sockfd);
 		exit(1);
@@ -68,16 +69,14 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	err = ::bind(sockfd, (struct sockaddr *)&servAddr, addrlen);
-	if (err < 0)
-	{
+	if (err < 0){
 		perror("failed to bind address to socket.\n");
 		close(sockfd);
 		exit(1);
 	}
 
 	err = listen(sockfd, 5);
-	if (err < 0)
-	{
+	if (err < 0){
 		perror("listen failed.\n");
 		close(sockfd);
 		exit(1);
@@ -87,6 +86,7 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 	newsockfd2 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 }
 
+//function to read all object names from a file so the object id of an object can be matched with a name
 vector<string> objects_names_from_file(string const filename) {
     ifstream file(filename);
     vector<string> file_lines;
@@ -96,8 +96,8 @@ vector<string> objects_names_from_file(string const filename) {
     return file_lines;
 }
 
-void *getSendResult(void *fd)
-{
+//perform object detection on a received frame and send the result vector to the client
+void *getSendResult(void *fd) {
 	int sockfd = *(int *)fd;
 	int err;
 	
@@ -112,31 +112,29 @@ void *getSendResult(void *fd)
 	vector<bbox_t> local_result_vec;
 	result_obj curr_result_obj;
 	
+	//wait until yolo detector is initialized
 	pthread_barrier_wait(&initBarrier);
 	
-	while (true)
-	{
-		//printf("2: waiting for buffer mutex\n");
+	while (true) {
 		pthread_mutex_lock(&bufferMutex);
-		while (frame_buffer.size() <= 0)
-		{
-			//printf("2: waiting for frame in buffer\n");
+		//wait until there is a frame object in the buffer
+		while (frame_buffer.size() <= 0) {
 			pthread_cond_wait(&bufferCond, &bufferMutex);
 		}
-		//printf("2: there is a frame in buffer\n");
+		//copy the first frame in the frame object buffer and remove it from the buffer so it can only be used once for object detection
 		local_frame_obj = frame_buffer.front();
 		frame_buffer.erase(frame_buffer.begin());
 		pthread_mutex_unlock(&bufferMutex);
-		//printf("2: buffer mutex unlocked\n");
-				
+		
+		//perform object detection on the copied frame		
 		local_result_vec = detector.detect(local_frame_obj.frame);
-		//printf("2: detection completed\n");
+		
+		//temporary timing to see how old the frame is after object detection
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
-		printf("detected frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
+		printf("Detected frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 		
-		size_t n = local_result_vec.size();
-		//printf("2: %zu objects found\n",n);
+		//send the frame id of the frame on which object detection is performed
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -144,6 +142,7 @@ void *getSendResult(void *fd)
 			exit(1);
 		} 
 		
+		//send the capture time of the frame on which object detection is performed 
 		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -151,15 +150,18 @@ void *getSendResult(void *fd)
 			exit(1);
 		} 
 		
+		//send the amount of objects that are found so client knows how many result vectors to read.
+		size_t n = local_result_vec.size();
+		//printf("2: %zu objects found\n",n);
 		err = write(sockfd, &n, sizeof(size_t));
-		if (err < 0)
-		{
+		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
 		}
-		for (auto &i : local_result_vec)
-		{
+		
+		//for each detected object copy the data into a result_obj and send this to the client
+		for (auto &i : local_result_vec) {
 			curr_result_obj.x = i.x; 
 			curr_result_obj.y = i.y;
 			curr_result_obj.w = i.w;
@@ -168,8 +170,7 @@ void *getSendResult(void *fd)
 			curr_result_obj.obj_id = i.obj_id;
 			
 			err = write(sockfd, &curr_result_obj, sizeof(result_obj));
-			if (err < 0)
-			{
+			if (err < 0){
 				perror("ERROR writing to socket");
 				close(sockfd);
 				exit(1);
@@ -178,21 +179,21 @@ void *getSendResult(void *fd)
 	}
 }
 
-void *recvFrame(void *fd)
-{
+//receive a frame and store it in a buffer
+void *recvFrame(void *fd) {
 	int sockfd = *(int *)fd;
 	int err;
 	size_t n;
 	frame_obj local_frame_obj;
 	
+	//wait until yolo detector is initialized
 	pthread_barrier_wait(&initBarrier);
 
-	while (true)
-	{
+	while (true) {
 		vector<uchar> vec;
 		err = BUFF_SIZE;
-		//printf("1: start of frame reading\n" );
 		
+		//read frame id of received frame
 		err = read(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -200,6 +201,7 @@ void *recvFrame(void *fd)
 			exit(1);
 		} 
 		
+		//read capture time of received frame
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -207,6 +209,7 @@ void *recvFrame(void *fd)
 			exit(1);
 		} 
 		
+		//read the size of the vector containing the frame data 
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
 			perror("ERROR reading from socket");
@@ -214,9 +217,9 @@ void *recvFrame(void *fd)
 			exit(1);
 		}
 		
+		//read until frame is fully received and add this to the vector
 		size_t curr = 0;
-		while (curr < n)
-		{
+		while (curr < n) {
 			uchar buffer[BUFF_SIZE];
 			err = read(sockfd, buffer, min((int)(n-curr),BUFF_SIZE));
 			if (err < 0)
@@ -229,33 +232,32 @@ void *recvFrame(void *fd)
 			curr += err;
 		}
 		
+		//decode frame
 		local_frame_obj.frame = imdecode(vec, 1);
+		
+		//temporary timing to see how old the frame is after receiving
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
 		printf("received frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
-		if (!local_frame_obj.frame.empty())
-		{
-			//printf("1: frame received and decoded\n");
+		
+		if (!local_frame_obj.frame.empty()) {
+			//frame is not empty, push it to the back of the frame object vector
 			pthread_mutex_lock(&bufferMutex);
 			frame_buffer.push_back(local_frame_obj);
-			//printf("1: there are now %zu frames in buffer\n",frame_buffer.size());
-			if (frame_buffer.size() > MAX_FRAME_BUFFER_SIZE)
-			{
+			//if there are too many frames in the buffer, drop the frame that was just received to prevent buffer overflow
+			if (frame_buffer.size() > MAX_FRAME_BUFFER_SIZE){
 				frame_buffer.erase(frame_buffer.end());
 			}
 			pthread_cond_signal(&bufferCond);
 			pthread_mutex_unlock(&bufferMutex);
-			//printf("1: buffer mutex unlocked\n");
 		} else {
-			//printf("1: frame empty\n");
+			//something wrong with just received frame, drop it
 		}
 	}
 }
 
-int main(int argc, char *argv[])
-{
-	if (argc != 2)
-	{
+int main(int argc, char *argv[]) {
+	if (argc != 2){
 		perror("Usage: ./serv [port number].\n");
 		return 1;
 	}

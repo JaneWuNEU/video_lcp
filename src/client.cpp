@@ -25,12 +25,14 @@
 using namespace cv;
 using namespace std;
 
-struct result_obj {
-    unsigned int x, y, w, h;       // (x,y) - top-left corner, (w, h) - width & height of bounded box
-    float prob;                    // confidence - probability that the object was found correctly
-    unsigned int obj_id;           // class of object - from range [0, classes-1]
+// object that is returned by the server in which information on a detected object is stored
+struct result_obj {					
+    unsigned int x, y, w, h;      
+    float prob;                    
+    unsigned int obj_id; 
 };
 
+// frame object that stores all the information about a frame
 struct frame_obj {
 	unsigned int frame_id;
 	std::chrono::system_clock::time_point start;
@@ -42,8 +44,9 @@ frame_obj global_frame_obj;
 pthread_mutex_t frameMutex;
 pthread_cond_t frameCond;
 vector<string> obj_names;
-	
-void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
+
+// make a connection to the server and open two sockets one for sending data, one for receiving data
+void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]) {
 	int err;
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
@@ -92,6 +95,7 @@ void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]){
 	}
 }
 
+//function to read all object names from a file so the object id of an object can be matched with a name
 vector<string> objects_names_from_file(string const filename) {
     ifstream file(filename);
     vector<string> file_lines;
@@ -101,9 +105,10 @@ vector<string> objects_names_from_file(string const filename) {
     return file_lines;
 }
 
-void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id)
-{
-    for (auto &i : result_vec) {
+//render the bounding boxes of objects stored in the result vec, which is returned by the server, in the current frame 
+void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id) {
+	// for each located object 
+    for (auto &i : result_vec) { 
         rectangle(local_frame_obj.frame, Point(i.x, i.y), Point(i.x+i.w, i.y+i.h), Scalar(255, 178, 50), 3);
         if (obj_names.size() > i.obj_id) {
             string label = format("%.2f", i.prob);
@@ -116,7 +121,8 @@ void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigne
             rectangle(local_frame_obj.frame, Point(i.x, top - round(1.5*labelSize.height)), Point(i.x + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
             putText(local_frame_obj.frame, label, Point(i.x, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
         }
-    }
+    } 
+	// add latency of the frame on which detection is performed and the difference between that frame and the current frame  
 	auto end = std::chrono::system_clock::now();
 	std::chrono::duration<double> spent = end - local_frame_obj.start;
 	printf("result frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
@@ -128,8 +134,9 @@ void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigne
     putText(local_frame_obj.frame, label, Point(0, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
 }
 
-void consoleOutput(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id)
-{
+//print console output for a frame instead of rendering and showing an image 
+void consoleOutput(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id) {
+	//print latency and frame difference between current frame and frame on which detection is performed
     auto end = std::chrono::system_clock::now();
 	std::chrono::duration<double> spent = end - local_frame_obj.start;
 	printf("------------------------------------------------------------\n");
@@ -138,6 +145,7 @@ void consoleOutput(frame_obj local_frame_obj, vector<result_obj> result_vec, uns
 	printf("Currently captured frame %d is %d frames newer\n",curr_frame_id, curr_frame_id - local_frame_obj.frame_id);
 	printf("A total of %zu objects have been recognized\n", result_vec.size());
 	
+	//print names and confidence of located objects
 	for (auto &i : result_vec) {
         if (obj_names.size() > i.obj_id) {
             string label = format("%.2f", i.prob);
@@ -148,21 +156,23 @@ void consoleOutput(frame_obj local_frame_obj, vector<result_obj> result_vec, uns
 	printf("\n");
 }
 
-void *recvrend(void *fd){
+//receive result from server and process result
+void *recvrend(void *fd) {
 	int sockfd = *(int*)fd;
 	int err;
 	
+	//wait until first frame is captured so this can be copied for rendering
 	pthread_mutex_lock(&frameMutex);
 	while(global_frame_obj.frame.empty()){
-		//printf("2: waiting for captured frame\n");
 		pthread_cond_wait(&frameCond, &frameMutex);
 	}
 	pthread_mutex_unlock(&frameMutex);
 	
-	while(waitKey(1) < 0){
+	while(waitKey(1) < 0) {
 		frame_obj local_frame_obj;
 		vector<result_obj> result_vec;
 		
+		//receive frame id on which the server performed object detection
 		err = read(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -170,6 +180,7 @@ void *recvrend(void *fd){
 			exit(1);
 		} 
 		
+		//receive capture time of frame on which server performed detection
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -177,6 +188,7 @@ void *recvrend(void *fd){
 			exit(1);
 		} 
 		
+		//receive amount of located objects to know how many result_obj should be received
 		size_t n;
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
@@ -186,6 +198,7 @@ void *recvrend(void *fd){
 		}
 		//printf("2: %zu objects found\n",n);
 		
+		//for each located object, receive one result_obj and store this in the result vector
 		for (size_t i = 0; i < n; ++i) {
 			result_obj obj;
 			err = read(sockfd,&obj,sizeof(result_obj));
@@ -197,45 +210,47 @@ void *recvrend(void *fd){
 			result_vec.push_back(obj);
 		}
 		
-		//printf("2: waiting for frame mutex\n");
+		//copy the frame from the global frame object so the last captured frame can be used for rendering
 		pthread_mutex_lock(&frameMutex);
 		local_frame_obj.frame = global_frame_obj.frame.clone();
 		unsigned int curr_frame_id = global_frame_obj.frame_id;
 		pthread_mutex_unlock(&frameMutex);
-		//printf("2: frame mutex unlocked\n"); 
-		
+				
+		//enable next line to use console outpu
 		//consoleOutput(local_frame_obj, result_vec, curr_frame_id);
+		
+		//enable next two lines to use image output and show the rendered frame with bounding boxes
 		drawBoxes(local_frame_obj, result_vec, curr_frame_id);
 		imshow("Result", local_frame_obj.frame);
 	}
 } 
 
-void *capsend(void *fd){
+//capture and send a frame to the server for object detection
+void *capsend(void *fd) {
 	int sockfd = *(int*)fd;
 	int err;
 	vector<uchar> vec;
 	int frame_counter = 0;
 	frame_obj local_frame_obj;
 	
-	while(true){
+	while(true) {
+		//capture frame into local frame object so capturing is not done within mutex
 		capture.read(local_frame_obj.frame);
 		if (local_frame_obj.frame.empty()) {
 			perror("ERROR no frame\n");
-			continue;
+			break;
 		}
 		local_frame_obj.start = std::chrono::system_clock::now();
 		local_frame_obj.frame_id = frame_counter;
 		frame_counter++;
-				
-		//printf("1: waiting for frame mutex\n");
+		
+		//copy local frame into the global frame variable so it can be used for rendering of an image
 		pthread_mutex_lock(&frameMutex);
 		global_frame_obj = local_frame_obj;
 		pthread_cond_signal(&frameCond);
 		pthread_mutex_unlock(&frameMutex);
-		//printf("1: frame mutex unlocked\n");
 		
-		imencode(".jpg", local_frame_obj.frame, vec);
-		
+		//send frame id 
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -243,6 +258,7 @@ void *capsend(void *fd){
 			exit(1);
 		} 
 		
+		//send capture time of frame
 		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -250,6 +266,8 @@ void *capsend(void *fd){
 			exit(1);
 		} 
 		
+		//encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
+		imencode(".jpg", local_frame_obj.frame, vec);
 		size_t n = vec.size();
 		err = write(sockfd, &n, sizeof(size_t));
 		if (err < 0){
@@ -278,13 +296,13 @@ int main(int argc, char *argv[]) {
 	
 	connect_to_server(sockfd1, sockfd2, argv);
 	
-	if(argc == 4){
-		capture.open(argv[3]);
+	if(argc == 4){	//use video file input, gstreamer to enforce realtime reading of frames
+		capture.open(argv[3],CAP_GSTREAMER);
 		if (!capture.isOpened()) {
 			perror("ERROR opening video\n");
 			return 1;
 		}		
-	} else { 
+	} else { //use webcam as input
 		capture.open(0);
 		if (!capture.isOpened()) {
 			perror("ERROR opening camera\n");
