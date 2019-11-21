@@ -248,7 +248,7 @@ void *recvFrame(void *fd) {
 				frame_buffer.push_back(local_frame_obj);
 				pthread_cond_signal(&bufferCond);
 			}	
-			printf("there are now %d frames in buffer\n", frame_buffer.size());
+			printf("there are now %zu frames in buffer\n", frame_buffer.size());
 			pthread_mutex_unlock(&bufferMutex);
 		} 
 	}

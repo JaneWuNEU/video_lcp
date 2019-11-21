@@ -16,6 +16,8 @@ set_property(TARGET ${DARKNET_LIB_NAME} PROPERTY IMPORTED_LOCATION "${DARKNET_PA
 
 add_executable( server src/server.cpp )
 add_executable( client src/client.cpp )
+add_executable( detection src/detection.cpp )
 
 target_link_libraries( server ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
 target_link_libraries( client ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
+target_link_libraries( detection ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
