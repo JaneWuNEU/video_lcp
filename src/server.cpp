@@ -241,18 +241,16 @@ void *recvFrame(void *fd) {
 		printf("received frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 		
 		if (!local_frame_obj.frame.empty()) {
-			//frame is not empty, push it to the back of the frame object vector
+			//frame is not empty
 			pthread_mutex_lock(&bufferMutex);
-			frame_buffer.push_back(local_frame_obj);
-			//if there are too many frames in the buffer, drop the frame that was just received to prevent buffer overflow
-			if (frame_buffer.size() > MAX_FRAME_BUFFER_SIZE){
-				frame_buffer.erase(frame_buffer.end());
-			}
-			pthread_cond_signal(&bufferCond);
+			//If the buffer is not full, push to back of the buffer, else drop the frame
+			if (frame_buffer.size() < MAX_FRAME_BUFFER_SIZE){
+				frame_buffer.push_back(local_frame_obj);
+				pthread_cond_signal(&bufferCond);
+			}	
+			printf("there are now %d frames in buffer\n", frame_buffer.size());
 			pthread_mutex_unlock(&bufferMutex);
-		} else {
-			//something wrong with just received frame, drop it
-		}
+		} 
 	}
 }
 
