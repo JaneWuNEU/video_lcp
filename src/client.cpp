@@ -36,12 +36,15 @@ struct result_obj {
 struct frame_obj {
 	unsigned int frame_id;
 	std::chrono::system_clock::time_point start;
+	double multiplier;
 	Mat frame;
 };
 
 VideoCapture capture;
 frame_obj global_frame_obj;
+double global_multiplier;
 pthread_mutex_t frameMutex;
+pthread_mutex_t multiplierMutex;
 pthread_cond_t frameCond;
 vector<string> obj_names;
 
@@ -95,6 +98,42 @@ void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]) {
 	}
 }
 
+// make a connection to the monitor
+void connect_to_monitor(int &sockfd, int port) {
+	int err;
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+	struct in_addr *addr;
+	socklen_t addrlen = sizeof(struct sockaddr_in);
+
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if(sockfd < 0){
+		perror("failed to open socket.\n");
+		exit(1);
+	}
+	
+	server = gethostbyname("localhost");
+	if (server==NULL) {
+		perror("Address not found for\n");
+		close(sockfd);
+		exit(1);
+	} else {
+		addr = (struct in_addr*) server->h_addr_list[0];
+	}
+
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(port);
+	serv_addr.sin_addr.s_addr = inet_addr(inet_ntoa(*addr));
+	
+	err = connect(sockfd,(struct sockaddr *)&serv_addr,addrlen);
+	if(err < 0){
+		perror("Connecting to server failed\n");
+		close(sockfd);
+		exit(1);
+	}
+}
+
+
 //function to read all object names from a file so the object id of an object can be matched with a name
 vector<string> objects_names_from_file(string const filename) {
     ifstream file(filename);
@@ -108,18 +147,23 @@ vector<string> objects_names_from_file(string const filename) {
 //render the bounding boxes of objects stored in the result vec, which is returned by the server, in the current frame 
 void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id) {
 	// for each located object 
-    for (auto &i : result_vec) { 
-        rectangle(local_frame_obj.frame, Point(i.x, i.y), Point(i.x+i.w, i.y+i.h), Scalar(255, 178, 50), 3);
+	for (auto &i : result_vec) { 
+		int x = (int)(i.x/local_frame_obj.multiplier);
+		int w = (int)(i.w/local_frame_obj.multiplier);
+		int y = (int)(i.y/local_frame_obj.multiplier);
+		int h = (int)(i.h/local_frame_obj.multiplier);
+		
+		rectangle(local_frame_obj.frame, Point(x, y), Point(x+w, y+h), Scalar(255, 178, 50), 3);
         if (obj_names.size() > i.obj_id) {
             string label = format("%.2f", i.prob);
 			label = obj_names[i.obj_id] + ":" + label;
 			
 			int baseLine;
             Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
-            int top = max((int)i.y, labelSize.height);
+            int top = max((int)y, labelSize.height);
 
-            rectangle(local_frame_obj.frame, Point(i.x, top - round(1.5*labelSize.height)), Point(i.x + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
-            putText(local_frame_obj.frame, label, Point(i.x, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
+            rectangle(local_frame_obj.frame, Point(x, top - round(1.5*labelSize.height)), Point(x + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
+            putText(local_frame_obj.frame, label, Point(x, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
         }
     } 
 	// add latency of the frame on which detection is performed and the difference between that frame and the current frame  
@@ -188,6 +232,14 @@ void *recvrend(void *fd) {
 			exit(1);
 		} 
 		
+		//receive multiplier value
+		err = read(sockfd, &local_frame_obj.multiplier, sizeof(double));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+				
 		//receive amount of located objects to know how many result_obj should be received
 		size_t n;
 		err = read(sockfd,&n,sizeof(size_t));
@@ -250,6 +302,14 @@ void *capsend(void *fd) {
 		pthread_cond_signal(&frameCond);
 		pthread_mutex_unlock(&frameMutex);
 		
+		pthread_mutex_lock(&multiplierMutex);
+		local_frame_obj.multiplier = global_multiplier;
+		pthread_mutex_unlock(&multiplierMutex);
+
+		if (local_frame_obj.multiplier!=1){
+			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(0,0), local_frame_obj.multiplier, local_frame_obj.multiplier, cv::INTER_NEAREST);
+		}
+ 		
 		//send frame id 
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
@@ -264,8 +324,17 @@ void *capsend(void *fd) {
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
+		}
+
+		//send multiplier value
+		err = write(sockfd, &local_frame_obj.multiplier, sizeof(double));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
 		} 
-		
+
+				
 		//encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
 		imencode(".jpg", local_frame_obj.frame, vec);
 		size_t n = vec.size();
@@ -286,18 +355,53 @@ void *capsend(void *fd) {
 	}
 }
 
+
+//receive bandwidth from monitor
+void *monitor(void *fd) {
+	int sockfd = *(int*)fd;
+	int err;
+	unsigned int speed;
+	
+	while(true) {
+		err = read(sockfd, &speed, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+
+		printf("Received speed from monitor, updated speed: %d \n", speed);
+		
+		double local_multiplier;
+		
+		if (speed >= 30) {
+			local_multiplier = 1;
+		} else if (speed >= 20) {
+			local_multiplier = 0.75;
+		} else {
+			local_multiplier = 0.5;
+		}
+		
+		pthread_mutex_lock(&multiplierMutex);
+		global_multiplier = local_multiplier;
+		pthread_mutex_unlock(&multiplierMutex);
+ 	}
+} 
+
+
 int main(int argc, char *argv[]) {
 	if(argc < 3){
-		perror("Usage: ./client [hostname] [port number] [(optional)path to video].\n");
+		perror("Usage: ./client [server_hostname] [server_port_number] [monitor_port_number] [(optional)path to video].\n");
 		return 1;
 	}
 	
-	int sockfd1, sockfd2, err;
+	int sockfd1, sockfd2, sockfd3, err;
 	
 	connect_to_server(sockfd1, sockfd2, argv);
+	connect_to_monitor(sockfd3, atoi(argv[3]));
 	
-	if(argc == 4){	//use video file input, gstreamer to enforce realtime reading of frames
-		capture.open(argv[3],CAP_GSTREAMER);
+	if(argc == 5){	//use video file input, gstreamer to enforce realtime reading of frames
+		capture.open(argv[4],CAP_GSTREAMER);
 		if (!capture.isOpened()) {
 			perror("ERROR opening video\n");
 			return 1;
@@ -312,16 +416,22 @@ int main(int argc, char *argv[]) {
 	
 	string names_file = "darknet/data/coco.names";
 	obj_names = objects_names_from_file(names_file);
+	global_multiplier = 1;
 	
 	pthread_mutex_init(&frameMutex, NULL);
+	pthread_mutex_init(&multiplierMutex, NULL);
 	pthread_cond_init(&frameCond, NULL);
 	
-	pthread_t thread1, thread2;
+	pthread_t thread1, thread2, thread3;
 	pthread_create(&thread1, NULL, capsend, (void*) &sockfd1);
 	pthread_create(&thread2, NULL, recvrend, (void*) &sockfd2);
+	pthread_create(&thread3, NULL, monitor, (void*) &sockfd3);
+
 	
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
+	pthread_join(thread3, NULL);
+	
 	close(sockfd1);
 	close(sockfd2);
 	return 0;

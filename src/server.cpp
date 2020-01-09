@@ -40,6 +40,7 @@ struct result_obj {
 struct frame_obj {
 	unsigned int frame_id;
 	std::chrono::system_clock::time_point start;
+	double multiplier;
 	Mat frame;
 };
 
@@ -150,6 +151,14 @@ void *getSendResult(void *fd) {
 			exit(1);
 		} 
 		
+		//send multiplier value 
+		err = write(sockfd, &local_frame_obj.multiplier, sizeof(double));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+				
 		//send the amount of objects that are found so client knows how many result vectors to read.
 		size_t n = local_result_vec.size();
 		//printf("2: %zu objects found\n",n);
@@ -209,6 +218,14 @@ void *recvFrame(void *fd) {
 			exit(1);
 		} 
 		
+		//read multiplier value
+		err = read(sockfd, &local_frame_obj.multiplier, sizeof(double));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+				
 		//read the size of the vector containing the frame data 
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 

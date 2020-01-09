@@ -3,7 +3,9 @@ project( Thesis )
 find_package( OpenCV 4 REQUIRED )
 set(CMAKE_CXX_FLAGS "-std=c++11 -pthread")
 set(DARKNET_PATH darknet)
-set(DARKNET_LIB_NAME libdarknet)
+set(DARKNET_LIB_NAME libdark)
+#set(IPERF_PATH iperf)
+#set(IPERF_LIB_NAME libiperf)
 
 include_directories( 
 	${CMAKE_CURRENT_SOURCE_DIR}
@@ -11,11 +13,15 @@ include_directories(
 	${DARKNET_PATH}/include
 )
 
+#add_library(${IPERF_LIB_NAME} SHARED IMPORTED)
+#set_property(TARGET ${IPERF_LIB_NAME} PROPERTY IMPORTED_LOCATION "/usr/local/lib/libiperf.so")
+
 add_library(${DARKNET_LIB_NAME} SHARED IMPORTED)
 set_property(TARGET ${DARKNET_LIB_NAME} PROPERTY IMPORTED_LOCATION "${DARKNET_PATH}/libdark.so")
 
 add_executable( server src/server.cpp )
 add_executable( client src/client.cpp )
+add_executable( monitor src/monitor.cpp )
 add_executable( detection src/detection.cpp )
 
 target_link_libraries( server ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )

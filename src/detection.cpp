@@ -20,6 +20,8 @@
 static std::unique_ptr<Detector> detector;
 static std::unique_ptr<Detector> detector2;
 
+Detector* detectors[2];
+
 void draw_boxes(cv::Mat mat_img, std::vector<bbox_t> result_vec, std::vector<std::string> obj_names)
 {
     for (auto &i : result_vec) {
@@ -69,8 +71,11 @@ int main(int argc, char *argv[])
     std::string weights_file1 = "darknet/yolov3.weights";
 	
 	//std::vector<Detector> detectors;
-	Detector* detectors[2] = {new Detector(cfg_file1, weights_file1), new Detector(cfg_file1, weights_file1)};
+	//Detector* detectors[2] = {new Detector(cfg_file1, weights_file1), new Detector(cfg_file1, weights_file1)};
     	
+	detectors[0] = new Detector(cfg_file1, weights_file1);
+	detectors[1] = new Detector(cfg_file1, weights_file1);
+	
 	cv::Mat image, image2, image3;
 	std::vector<uchar> vec;
 	image = cv::imread( argv[1], 1 );
@@ -85,7 +90,13 @@ int main(int argc, char *argv[])
 
 	image2 = cv::imdecode (vec, 1);
 	
-	cv::resize(image2, image3, cv::Size(0,0), 0.4, 0.4, cv::INTER_NEAREST);
+	auto re_start = std::chrono::steady_clock::now();
+	
+	cv::resize(image2, image3, cv::Size(0,0), 0.6, 0.6, cv::INTER_NEAREST);
+	
+	auto re_end = std::chrono::steady_clock::now();
+	std::chrono::duration<double> re_spent = re_end - re_start;
+	std::cout << " Time: " << re_spent.count() << " sec \n";
 	
 	cv::imencode(".jpg", image3, vec);
 	printf("size of normal vec: %zu\n",vec.size());
@@ -117,6 +128,6 @@ int main(int argc, char *argv[])
 	draw_boxes(image3, result_vec, obj_names);
 		
 	cv::imshow("Result", image3);
-	//show_console_result(result_vec, obj_names);
+	show_console_result(result_vec, obj_names);
 	cv::waitKey(0);
 }
