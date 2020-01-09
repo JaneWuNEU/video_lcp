@@ -398,7 +398,10 @@ int main(int argc, char *argv[]) {
 	int sockfd1, sockfd2, sockfd3, err;
 	
 	connect_to_server(sockfd1, sockfd2, argv);
-	connect_to_monitor(sockfd3, atoi(argv[3]));
+	
+	if (atoi(argv[3]) != 0) {
+		connect_to_monitor(sockfd3, atoi(argv[3]));
+	}
 	
 	if(argc == 5){	//use video file input, gstreamer to enforce realtime reading of frames
 		capture.open(argv[4],CAP_GSTREAMER);
@@ -425,8 +428,9 @@ int main(int argc, char *argv[]) {
 	pthread_t thread1, thread2, thread3;
 	pthread_create(&thread1, NULL, capsend, (void*) &sockfd1);
 	pthread_create(&thread2, NULL, recvrend, (void*) &sockfd2);
-	pthread_create(&thread3, NULL, monitor, (void*) &sockfd3);
-
+	if (atoi(argv[3]) != 0) {
+		pthread_create(&thread3, NULL, monitor, (void*) &sockfd3);
+	}
 	
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
