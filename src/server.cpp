@@ -29,6 +29,9 @@
 using namespace cv;
 using namespace std;
 
+Detector* detectors[2];
+bool useDetector0;
+
 // object that is returned by the server in which information on a detected object is stored
 struct result_obj {
     unsigned int x, y, w, h;       
@@ -49,11 +52,13 @@ vector<string> obj_names;
 vector<bbox_t> result_vec;
 
 pthread_mutex_t bufferMutex;
+pthread_mutex_t detectorBoolMutex;
+pthread_mutex_t detector0Mutex;
+pthread_mutex_t detector1Mutex;
 pthread_cond_t bufferCond;
-pthread_barrier_t initBarrier;
 
 // make a connection to the client and open two sockets one for sending data, one for receiving data
-void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv[]) {
+void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, int &newsockfd3, char *argv[]) {
 	int err;
 	struct sockaddr_in servAddr, clientAddr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
@@ -85,6 +90,7 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv
 
 	newsockfd1 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 	newsockfd2 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
+	newsockfd3 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 }
 
 //function to read all object names from a file so the object id of an object can be matched with a name
@@ -97,24 +103,119 @@ vector<string> objects_names_from_file(string const filename) {
     return file_lines;
 }
 
+void *updateDetectionModel(void *fd) {
+	int sockfd = *(int *)fd;
+	int err;
+	unsigned int currModel;
+	//local bool used since this is the only thread that modifies the global version
+	bool localUseDetector0 = true;
+	bool scaleUp; //false is scale down
+	
+	string cfg_file0 = "darknet/cfg/yolov3-tiny.cfg";
+    string weights_file0 = "darknet/yolov3-tiny.weights";
+	string cfg_file1 = "darknet/cfg/yolov3_224.cfg";
+    string weights_file1 = "darknet/yolov3.weights";
+	string cfg_file2 = "darknet/cfg/yolov3_320.cfg";
+    string weights_file2 = "darknet/yolov3.weights";
+	string cfg_file3 = "darknet/cfg/yolov3_416.cfg";
+    string weights_file3 = "darknet/yolov3.weights";
+	string cfg_file4 = "darknet/cfg/yolov3_608.cfg";
+    string weights_file4 = "darknet/yolov3.weights";
+	
+	while (true) {
+		//read from sock to receive message from client
+		err = read(sockfd, &currModel, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR reading socket");
+			close(sockfd);
+			exit(1);
+		} 
+		printf("Curr model now : %d\n", currModel);
+		
+		//if detector0 is being used (by detection thread), update detector 1, else update detector 0
+		if(localUseDetector0){
+			//update detector 1
+			//lock is required to prevent update of detector model while detection thread is still using the detector
+			pthread_mutex_lock(&detector1Mutex);
+		
+			//case currModel 
+			switch(currModel){
+				case 0: 
+					detectors[1] = new Detector(cfg_file0,weights_file0);
+					break;
+				case 1: 
+					detectors[1] = new Detector(cfg_file1,weights_file1);
+					break;
+				case 2: 
+					detectors[1] = new Detector(cfg_file2,weights_file2);
+					break;
+				case 3: 
+					detectors[1] = new Detector(cfg_file3,weights_file3);
+					break;
+				case 4: 
+					detectors[1] = new Detector(cfg_file4,weights_file4);
+					break;
+			}
+			
+			pthread_mutex_unlock(&detector1Mutex);
+			
+			printf("updated detector 1\n");
+			localUseDetector0 = false; 
+			pthread_mutex_lock(&detectorBoolMutex);
+			useDetector0 = false; 
+			pthread_mutex_unlock(&detectorBoolMutex);
+			
+		} else {
+			//update detector 0
+			pthread_mutex_lock(&detector0Mutex);
+			
+			//case currModel 
+			switch(currModel){
+				case 0: 
+					detectors[0] = new Detector(cfg_file0,weights_file0);
+					break;
+				case 1: 
+					detectors[0] = new Detector(cfg_file1,weights_file1);
+					break;
+				case 2: 
+					detectors[0] = new Detector(cfg_file2,weights_file2);
+					break;
+				case 3: 
+					detectors[0] = new Detector(cfg_file3,weights_file3);
+					break;
+				case 4: 
+					detectors[0] = new Detector(cfg_file4,weights_file4);
+					break;
+			}
+			
+			pthread_mutex_unlock(&detector0Mutex);
+			
+			printf("updated detector 0\n");
+			localUseDetector0 = true; 
+			pthread_mutex_lock(&detectorBoolMutex);
+			useDetector0 = true; 
+			pthread_mutex_unlock(&detectorBoolMutex);
+			
+		}
+		bool update_completed = true;
+		err = write(sockfd, &update_completed, sizeof(bool));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+	}	
+}
+
 //perform object detection on a received frame and send the result vector to the client
 void *getSendResult(void *fd) {
 	int sockfd = *(int *)fd;
 	int err;
 	
-	string names_file = "darknet/data/coco.names";
-    string cfg_file = "darknet/cfg/yolov3.cfg";
-    string weights_file = "darknet/yolov3.weights";
-    
-	Detector detector(cfg_file, weights_file);
-    obj_names = objects_names_from_file(names_file);
-	
 	frame_obj local_frame_obj;
 	vector<bbox_t> local_result_vec;
 	result_obj curr_result_obj;
-	
-	//wait until yolo detector is initialized
-	pthread_barrier_wait(&initBarrier);
+	bool localUseDetector0;
 	
 	while (true) {
 		pthread_mutex_lock(&bufferMutex);
@@ -126,10 +227,23 @@ void *getSendResult(void *fd) {
 		local_frame_obj = frame_buffer.front();
 		frame_buffer.erase(frame_buffer.begin());
 		pthread_mutex_unlock(&bufferMutex);
+				
+		//check which detector to use
+		pthread_mutex_lock(&detectorBoolMutex);
+		localUseDetector0 = useDetector0;
+		pthread_mutex_unlock(&detectorBoolMutex);
 		
-		//perform object detection on the copied frame		
-		local_result_vec = detector.detect(local_frame_obj.frame);
-		
+		//perform object detection on the copied frame using detector 0 or 1
+		if(localUseDetector0){
+			pthread_mutex_lock(&detector0Mutex);
+			local_result_vec = detectors[0]->detect(local_frame_obj.frame);
+			pthread_mutex_unlock(&detector0Mutex);
+		} else {
+			pthread_mutex_lock(&detector1Mutex);
+			local_result_vec = detectors[1]->detect(local_frame_obj.frame);
+			pthread_mutex_unlock(&detector1Mutex);
+		}
+			
 		//temporary timing to see how old the frame is after object detection
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
@@ -195,9 +309,6 @@ void *recvFrame(void *fd) {
 	size_t n;
 	frame_obj local_frame_obj;
 	
-	//wait until yolo detector is initialized
-	pthread_barrier_wait(&initBarrier);
-
 	while (true) {
 		vector<uchar> vec;
 		err = BUFF_SIZE;
@@ -277,22 +388,35 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	int sockfd, newsockfd1, newsockfd2, err, n;
-	connect_to_client(sockfd, newsockfd1, newsockfd2, argv);
-
-	pthread_mutex_init(&bufferMutex, NULL);
-	pthread_cond_init(&bufferCond, NULL);
-	pthread_barrier_init(&initBarrier,NULL,2);
+	int sockfd, newsockfd1, newsockfd2, newsockfd3, err, n;
+	connect_to_client(sockfd, newsockfd1, newsockfd2, newsockfd3, argv);
 	
-	pthread_t thread1, thread2;
+	string names_file = "darknet/data/coco.names";
+	string cfg_file = "darknet/cfg/yolov3_320.cfg";
+    string weights_file = "darknet/yolov3.weights";
+    
+	detectors[0] = new Detector(cfg_file, weights_file);
+	obj_names = objects_names_from_file(names_file);
+	useDetector0 = true;
+	
+	pthread_mutex_init(&bufferMutex, NULL);
+	pthread_mutex_init(&detectorBoolMutex, NULL);
+	pthread_mutex_init(&detector0Mutex, NULL);
+	pthread_mutex_init(&detector1Mutex, NULL);
+	pthread_cond_init(&bufferCond, NULL);
+	
+	pthread_t thread1, thread2, thread3;
 	pthread_create(&thread1, NULL, recvFrame, (void *)&newsockfd1);
 	pthread_create(&thread2, NULL, getSendResult, (void *)&newsockfd2);
+	pthread_create(&thread3, NULL, updateDetectionModel, (void *)&newsockfd3);
 
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
+	pthread_join(thread3, NULL);
 
 	close(sockfd);
 	close(newsockfd1);
 	close(newsockfd2);
+	close(newsockfd3);
 	return 0;
 }

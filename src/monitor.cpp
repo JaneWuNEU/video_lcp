@@ -3,8 +3,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-
-
 // make a connection to the client and open two sockets one for sending data, one for receiving data
 void connect_to_client(int &sockfd, int &newsockfd, int port) {
 	int err;
@@ -39,6 +37,8 @@ void connect_to_client(int &sockfd, int &newsockfd, int port) {
 	newsockfd = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 }
 
+//read current bandwidth from user input (instead of monitoring) and send this data to the client 
+//maybe also include latency
 void monitor_speed(int sockfd){
 	int err;
 	unsigned int speed;
