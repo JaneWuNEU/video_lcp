@@ -179,7 +179,7 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("read new frame id : %d\n",local_frame_obj.frame_id);
+		//printf("read new frame id : %d\n",local_frame_obj.frame_id);
 		
 		//receive capture time of frame on which server performed detection
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
@@ -188,7 +188,7 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("read capture time of frame id %d\n",local_frame_obj.frame_id);
+		//printf("read capture time of frame id %d\n",local_frame_obj.frame_id);
 
 		//receive correct model value
 		err = read(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
@@ -197,7 +197,7 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("read correct model of frame id %d : %d\n",local_frame_obj.frame_id, local_frame_obj.correct_model);
+		//printf("read correct model of frame id %d : %d\n",local_frame_obj.frame_id, local_frame_obj.correct_model);
 
 		
 		//receive used model value
@@ -207,7 +207,7 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("read used model of frame id %d : %d\n",local_frame_obj.frame_id, local_frame_obj.used_model);
+		//printf("read used model of frame id %d : %d\n",local_frame_obj.frame_id, local_frame_obj.used_model);
 				
 		//receive amount of located objects to know how many result_obj should be received
 		size_t n;
@@ -217,7 +217,7 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		}
-		printf(" %zu objects found\n",n);
+		//printf(" %zu objects found\n",n);
 		
 		//for each located object, receive one result_obj and store this in the result vector
 		for (size_t i = 0; i < n; ++i) {
@@ -244,7 +244,7 @@ void *recvrend(void *fd) {
  			result_vec.push_back(obj); 
 		}
 		
-		printf("read all objects done \n");
+		//printf("read all objects done \n");
 		//copy the frame from the global frame object so the last captured frame can be used for rendering
 		pthread_mutex_lock(&frameMutex);
 		local_frame_obj.frame = global_frame_obj.frame.clone();
@@ -257,14 +257,14 @@ void *recvrend(void *fd) {
 		bool onTime = (spent.count() <= FRAME_DEADLINE) ? true : false;
 		
 		if (onTime) {
-			printf("frame is %f old while deadline is %f, so it is on time\n",spent.count(), FRAME_DEADLINE);
+			//printf("frame is %f old while deadline is %f, so it is on time\n",spent.count(), FRAME_DEADLINE);
 		} else {
-			printf("frame is %f old while deadline is %f, so it is not on time\n",spent.count(), FRAME_DEADLINE);
+			//printf("frame is %f old while deadline is %f, so it is not on time\n",spent.count(), FRAME_DEADLINE);
 		}
 		
 		printf("correct model : %d, used model : %d\n", local_frame_obj.correct_model, local_frame_obj.used_model);
 		if(local_frame_obj.used_model == local_frame_obj.correct_model){ //correct model is being used, so server is not updating model
-			printf("detector is not updating writing to pipe\n");
+			//printf("detector is not updating writing to pipe\n");
 			err = write(frameDeadlinePipe[1], &onTime, sizeof(bool));
 			if (err < 0){
 				perror("ERROR reading from pipe");
@@ -272,7 +272,7 @@ void *recvrend(void *fd) {
 				exit(1);
 			} 
 		} else {
-			printf("detector is updating, do not write to pipe\n");
+			//printf("detector is updating, do not write to pipe\n");
 		}
 			
 
@@ -327,7 +327,7 @@ void *capsend(void *fd) {
 		pthread_mutex_unlock(&frameMutex);
 		
 		//send frame id 
-		printf("S: %d\n",  local_frame_obj.frame_id);
+		//printf("S: %d\n",  local_frame_obj.frame_id);
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -336,7 +336,7 @@ void *capsend(void *fd) {
 		} 
 		
 		//send capture time of frame
-		printf("S: %d capture time\n",  local_frame_obj.frame_id);
+		//printf("S: %d capture time\n",  local_frame_obj.frame_id);
 		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -349,7 +349,7 @@ void *capsend(void *fd) {
 		local_frame_obj.correct_model = curr_model;
 		pthread_mutex_unlock(&modelMutex);
 		
-		printf("S: %d correct model %d\n",  local_frame_obj.frame_id, local_frame_obj.correct_model);
+		////printf("S: %d correct model %d\n",  local_frame_obj.frame_id, local_frame_obj.correct_model);
 		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -361,7 +361,7 @@ void *capsend(void *fd) {
 		resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
 		imencode(".jpg", local_frame_obj.frame, vec);
 		size_t n = vec.size();
-		printf("S: %d vec size : %zu\n",  local_frame_obj.frame_id, n);
+		//printf("S: %d vec size : %zu\n",  local_frame_obj.frame_id, n);
 
 		err = write(sockfd, &n, sizeof(size_t));
 		if (err < 0){
@@ -376,7 +376,7 @@ void *capsend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("S: image %d written\n", local_frame_obj.frame_id);
+		//printf("S: image %d written\n", local_frame_obj.frame_id);
 		//imshow("Live", frame);
 	}
 }
@@ -419,7 +419,7 @@ void *control(void *) {
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
 					pthread_mutex_unlock(&modelMutex);
-					printf("update completed, now using model %d\n", local_curr_model);
+					//printf("update completed, now using model %d\n", local_curr_model);
 				}
 			}
 		} else { //frame too late 
@@ -435,7 +435,7 @@ void *control(void *) {
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
 					pthread_mutex_unlock(&modelMutex);
-					printf("update completed, now using model %d\n", local_curr_model);
+					//printf("update completed, now using model %d\n", local_curr_model);
 				}
 			}
 		}

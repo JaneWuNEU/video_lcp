@@ -242,11 +242,11 @@ void *getSendResult(void *fd) {
 		}
 
 		//temporary timing to see how old the frame is after object detection
-		auto end = std::chrono::system_clock::now();
-		std::chrono::duration<double> spent = end - local_frame_obj.start;
-		printf("Detected frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
+		//auto end = std::chrono::system_clock::now();
+		//std::chrono::duration<double> spent = end - local_frame_obj.start;
+		//printf("Detected frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 		
-		printf("%d : write frame id \n", local_frame_obj.frame_id);
+		//printf("%d : write frame id \n", local_frame_obj.frame_id);
 		//send the frame id of the frame on which object detection is performed
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
@@ -255,7 +255,7 @@ void *getSendResult(void *fd) {
 			exit(1);
 		} 
 		
-		printf("%d : write capture time\n", local_frame_obj.frame_id);
+		//printf("%d : write capture time\n", local_frame_obj.frame_id);
 		//send the capture time of the frame on which object detection is performed 
 		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
@@ -264,7 +264,7 @@ void *getSendResult(void *fd) {
 			exit(1);
 		} 
 		
-		printf("%d : write correct model : %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model);
+		//printf("%d : write correct model : %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model);
 		//send correct model value 
 		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
@@ -273,7 +273,7 @@ void *getSendResult(void *fd) {
 			exit(1);
 		} 
 		
-		printf("%d : write used model : %d \n", local_frame_obj.frame_id, local_frame_obj.used_model);
+		//printf("%d : write used model : %d \n", local_frame_obj.frame_id, local_frame_obj.used_model);
 		//send used model value 
 		err = write(sockfd, &local_frame_obj.used_model, sizeof(unsigned int));
 		if (err < 0){
@@ -284,7 +284,7 @@ void *getSendResult(void *fd) {
 				
 		//send the amount of objects that are found so client knows how many result vectors to read.
 		size_t n = local_result_vec.size();
-		printf("%d: %zu objects found\n",local_frame_obj.frame_id,n);
+		//printf("%d: %zu objects found\n",local_frame_obj.frame_id,n);
 		err = write(sockfd, &n, sizeof(size_t));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -321,7 +321,7 @@ void *getSendResult(void *fd) {
 				exit(1);
 			}*/
 		}
-		printf("%d : written all objects\n", local_frame_obj.frame_id);
+		//printf("%d : written all objects\n", local_frame_obj.frame_id);
 	}
 }
 
@@ -343,7 +343,7 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("R: %d\n", local_frame_obj.frame_id);
+		//printf("R: %d\n", local_frame_obj.frame_id);
 		
 		//read capture time of received frame
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
@@ -352,7 +352,7 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("R: %d time read\n", local_frame_obj.frame_id);
+		//printf("R: %d time read\n", local_frame_obj.frame_id);
 		
 		//read correct model value
 		err = read(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
@@ -365,7 +365,7 @@ void *recvFrame(void *fd) {
 		
 		if(local_frame_obj.correct_model != local_curr_model){
 			//update model
-			printf("R: writing to update model to %d\n",local_frame_obj.correct_model);  
+			//printf("R: writing to update model to %d\n",local_frame_obj.correct_model);  
 			err = write(modelPipe[1], &local_frame_obj.correct_model, sizeof(unsigned int));
 			if (err < 0){
 				perror("ERROR reading from pipe");
@@ -383,7 +383,7 @@ void *recvFrame(void *fd) {
 			exit(1);
 		}
 		
-		printf("R: %d vec size %zu\n", local_frame_obj.frame_id, n);
+		//printf("R: %d vec size %zu\n", local_frame_obj.frame_id, n);
 		
 		//read until frame is fully received and add this to the vector
 		size_t curr = 0;
