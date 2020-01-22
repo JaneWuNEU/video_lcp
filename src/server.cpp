@@ -336,7 +336,6 @@ void *recvFrame(void *fd) {
 	while (true) {
 		vector<uchar> vec;
 		err = BUFF_SIZE;
-		
 		//read frame id of received frame
 		err = read(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
@@ -344,6 +343,7 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
+		printf("R: %d\n", local_frame_obj.frame_id);
 		
 		//read capture time of received frame
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
@@ -352,6 +352,7 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
+		printf("R: %d time read\n", local_frame_obj.frame_id);
 		
 		//read correct model value
 		err = read(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
@@ -360,9 +361,11 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
+		printf("R: %d correct model %d, local model %d\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
 		
 		if(local_frame_obj.correct_model != local_curr_model){
 			//update model
+			printf("R: writing to update model to %d\n",local_frame_obj.correct_model);  
 			err = write(modelPipe[1], &local_frame_obj.correct_model, sizeof(unsigned int));
 			if (err < 0){
 				perror("ERROR reading from pipe");
@@ -379,6 +382,8 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		}
+		
+		printf("R: %d vec size %zu\n", local_frame_obj.frame_id, n);
 		
 		//read until frame is fully received and add this to the vector
 		size_t curr = 0;

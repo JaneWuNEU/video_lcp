@@ -327,6 +327,7 @@ void *capsend(void *fd) {
 		pthread_mutex_unlock(&frameMutex);
 		
 		//send frame id 
+		printf("S: %d\n",  local_frame_obj.frame_id);
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -335,6 +336,7 @@ void *capsend(void *fd) {
 		} 
 		
 		//send capture time of frame
+		printf("S: %d capture time\n",  local_frame_obj.frame_id);
 		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -347,6 +349,7 @@ void *capsend(void *fd) {
 		local_frame_obj.correct_model = curr_model;
 		pthread_mutex_unlock(&modelMutex);
 		
+		printf("S: %d correct model %d\n",  local_frame_obj.frame_id, local_frame_obj.correct_model);
 		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -358,6 +361,8 @@ void *capsend(void *fd) {
 		resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
 		imencode(".jpg", local_frame_obj.frame, vec);
 		size_t n = vec.size();
+		printf("S: %d vec size : %zu\n",  local_frame_obj.frame_id, n);
+
 		err = write(sockfd, &n, sizeof(size_t));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -371,7 +376,7 @@ void *capsend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("image %d written\n", local_frame_obj.frame_id);
+		printf("S: image %d written\n", local_frame_obj.frame_id);
 		//imshow("Live", frame);
 	}
 }
