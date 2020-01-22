@@ -114,7 +114,6 @@ void *updateDetectionModel(void *) {
 			perror("ERROR reading from pipe");
 			exit(1);
 		}
-		printf("new model : %d\n", new_model);
 		
 		//if detector0 is being used (by detection thread), update detector 1, else update detector 0
 		if(localUseDetector0){
@@ -156,7 +155,7 @@ void *updateDetectionModel(void *) {
 			pthread_mutex_lock(&detectorMutex);
 			useDetector0 = false;
 			curr_model = new_model;
-			printf("updated detector 1, curr_model : %d \n", curr_model);
+			printf("U | detector 1, curr_model %d \n", curr_model);
 			pthread_mutex_unlock(&detectorMutex);
 			
 		} else {
@@ -197,7 +196,7 @@ void *updateDetectionModel(void *) {
 			pthread_mutex_lock(&detectorMutex);
 			useDetector0 = true;
 			curr_model = new_model;
-			printf("updated detector 0, curr_model : %d \n", curr_model);
+			printf("U | detector 0 | curr_model %d \n", curr_model);
 			pthread_mutex_unlock(&detectorMutex);
 		}
 	}	
@@ -321,6 +320,7 @@ void *getSendResult(void *fd) {
 				exit(1);
 			}*/
 		}
+		printf("S | id %d | correct model %d | used model %d | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, n);
 		//printf("%d : written all objects\n", local_frame_obj.frame_id);
 	}
 }
@@ -361,7 +361,7 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("R: %d correct model %d, local model %d\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
+		//printf("R: %d correct model %d, local model %d\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
 		
 		if(local_frame_obj.correct_model != local_curr_model){
 			//update model
@@ -406,7 +406,7 @@ void *recvFrame(void *fd) {
 		//temporary timing to see how old the frame is after receiving
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
-		printf("received frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
+		//printf("received frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 		
 		if (!local_frame_obj.frame.empty()) {
 			//frame is not empty
@@ -416,9 +416,12 @@ void *recvFrame(void *fd) {
 				frame_buffer.push_back(local_frame_obj);
 				pthread_cond_signal(&bufferCond);
 			}	
-			printf("there are now %zu frames in buffer\n", frame_buffer.size());
+			//printf("there are now %zu frames in buffer\n", frame_buffer.size());
 			pthread_mutex_unlock(&bufferMutex);
 		} 
+		
+		printf("R | id %d | correct model %d | local model %d | vec size %zu | time %f | buff size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model, n, spent.count(), frame_buffer.size());
+		
 	}
 }
 

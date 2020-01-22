@@ -124,7 +124,7 @@ void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigne
 	// add latency of the frame on which detection is performed and the difference between that frame and the current frame  
 	auto end = std::chrono::system_clock::now();
 	std::chrono::duration<double> spent = end - local_frame_obj.start;
-	printf("result frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
+	//printf("result frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 	string label = format("Curr: %d | Inf: %d | Time: %f", curr_frame_id, local_frame_obj.frame_id, spent.count());
 	int baseLine;
     Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
@@ -262,7 +262,7 @@ void *recvrend(void *fd) {
 			//printf("frame is %f old while deadline is %f, so it is not on time\n",spent.count(), FRAME_DEADLINE);
 		}
 		
-		printf("correct model : %d, used model : %d\n", local_frame_obj.correct_model, local_frame_obj.used_model);
+		printf("R | id %d | correct model %d | used model %d | objects %zu | time %f\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, n, spent.count());
 		if(local_frame_obj.used_model == local_frame_obj.correct_model){ //correct model is being used, so server is not updating model
 			//printf("detector is not updating writing to pipe\n");
 			err = write(frameDeadlinePipe[1], &onTime, sizeof(bool));
@@ -349,7 +349,7 @@ void *capsend(void *fd) {
 		local_frame_obj.correct_model = curr_model;
 		pthread_mutex_unlock(&modelMutex);
 		
-		////printf("S: %d correct model %d\n",  local_frame_obj.frame_id, local_frame_obj.correct_model);
+		//printf("S: %d correct model %d\n",  local_frame_obj.frame_id, local_frame_obj.correct_model);
 		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
@@ -377,6 +377,7 @@ void *capsend(void *fd) {
 			exit(1);
 		} 
 		//printf("S: image %d written\n", local_frame_obj.frame_id);
+		printf("S | id %d | correct model %d | vec size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, n);
 		//imshow("Live", frame);
 	}
 }
@@ -409,12 +410,12 @@ void *control(void *) {
 		if (onTime) {
 			lateCount = 0;
 			onTimeCount++;
-			printf("frame on time, now %d on time\n", onTimeCount);
+			//printf("frame on time, now %d on time\n", onTimeCount);
 			if (local_curr_model < MAX_MODEL) {
 				if (onTimeCount >= updateAfter) { 
 					local_curr_model++;
 					onTimeCount = 0;
-					printf("current model now : %d\n", local_curr_model);
+					printf("U | current model %d\n", local_curr_model);
 					
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
@@ -425,12 +426,12 @@ void *control(void *) {
 		} else { //frame too late 
 			onTimeCount = 0;
 			lateCount++;
-			printf("frame not time, now %d on late\n", lateCount);
+			//printf("frame not time, now %d on late\n", lateCount);
 			if (local_curr_model > MIN_MODEL) { 
 				if (lateCount >= updateAfter) { 
 					local_curr_model--;
 					lateCount = 0;
-					printf("current model now : %d\n", local_curr_model);
+					printf("U | current model %d\n", local_curr_model);
 
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
