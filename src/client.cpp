@@ -19,41 +19,28 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
-#define BUFF_SIZE 2048
-#define MAX_FRAME_BUFFER_SIZE 30
-#define FRAME_DEADLINE 0.20
+#include "common.h"
 
 using namespace cv;
 using namespace std;
 
-// object that is returned by the server in which information on a detected object is stored
-struct result_obj {					
-    unsigned int x, y, w, h;      
-    float prob;                    
-    unsigned int obj_id; 
-};
-
-// frame object that stores all the information about a frame
-struct frame_obj {
-	unsigned int frame_id;
-	std::chrono::system_clock::time_point start;
-	double multiplier;
-	Mat frame;
-};
-
 VideoCapture capture;
 frame_obj global_frame_obj;
-double global_multiplier;
 pthread_mutex_t frameMutex;
-pthread_mutex_t multiplierMutex;
-pthread_mutex_t updateMutex;
+pthread_mutex_t modelMutex;
 pthread_cond_t frameCond;
 vector<string> obj_names;
+
+unsigned int curr_model;
+int capture_frame_height;
+int capture_frame_width;
+
 int frameDeadlinePipe[2]; //pipe for communicating if frame results are received on time
 bool detector_update;
 
+
 // make a connection to the server and open two sockets one for sending data, one for receiving data
-void connect_to_server(int &sockfd1, int &sockfd2, int &sockfd3, char *argv[]) {
+void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]) {
 	int err;
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
@@ -71,19 +58,12 @@ void connect_to_server(int &sockfd1, int &sockfd2, int &sockfd3, char *argv[]) {
 		perror("failed to open socket.\n");
 		exit(1);
 	}
-
-	sockfd3 = socket(AF_INET, SOCK_STREAM, 0);
-	if(sockfd3 < 0){
-		perror("failed to open socket.\n");
-		exit(1);
-	}
 	
 	server = gethostbyname(argv[1]);
 	if (server==NULL) {
 		perror("Address not found for\n");
 		close(sockfd1);
 		close(sockfd2);
-		close(sockfd3);
 		exit(1);
 	} else {
 		addr = (struct in_addr*) server->h_addr_list[0];
@@ -98,7 +78,6 @@ void connect_to_server(int &sockfd1, int &sockfd2, int &sockfd3, char *argv[]) {
 		perror("Connecting to server failed\n");
 		close(sockfd1);
 		close(sockfd2);
-		close(sockfd3);
 		exit(1);
 	}
 	err = connect(sockfd2,(struct sockaddr *)&serv_addr,addrlen);
@@ -106,54 +85,9 @@ void connect_to_server(int &sockfd1, int &sockfd2, int &sockfd3, char *argv[]) {
 		perror("Connecting to server failed\n");
 		close(sockfd1);
 		close(sockfd2);
-		close(sockfd3);
-		exit(1);
-	}
-	err = connect(sockfd3,(struct sockaddr *)&serv_addr,addrlen);
-	if(err < 0){
-		perror("Connecting to server failed\n");
-		close(sockfd1);
-		close(sockfd2);
-		close(sockfd3);
 		exit(1);
 	}
 }
-
-// make a connection to the monitor
-void connect_to_monitor(int &sockfd, int port) {
-	int err;
-	struct sockaddr_in serv_addr;
-	struct hostent *server;
-	struct in_addr *addr;
-	socklen_t addrlen = sizeof(struct sockaddr_in);
-
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if(sockfd < 0){
-		perror("failed to open socket.\n");
-		exit(1);
-	}
-	
-	server = gethostbyname("localhost");
-	if (server==NULL) {
-		perror("Address not found for\n");
-		close(sockfd);
-		exit(1);
-	} else {
-		addr = (struct in_addr*) server->h_addr_list[0];
-	}
-
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(port);
-	serv_addr.sin_addr.s_addr = inet_addr(inet_ntoa(*addr));
-	
-	err = connect(sockfd,(struct sockaddr *)&serv_addr,addrlen);
-	if(err < 0){
-		perror("Connecting to server failed\n");
-		close(sockfd);
-		exit(1);
-	}
-}
-
 
 //function to read all object names from a file so the object id of an object can be matched with a name
 vector<string> objects_names_from_file(string const filename) {
@@ -169,10 +103,10 @@ vector<string> objects_names_from_file(string const filename) {
 void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigned int curr_frame_id) {
 	// for each located object 
 	for (auto &i : result_vec) { 
-		int x = (int)(i.x/local_frame_obj.multiplier);
-		int w = (int)(i.w/local_frame_obj.multiplier);
-		int y = (int)(i.y/local_frame_obj.multiplier);
-		int h = (int)(i.h/local_frame_obj.multiplier);
+		int x = (int)(i.x/(n_width[local_frame_obj.correct_model]*1.0/capture_frame_width*1.0));
+		int w = (int)(i.w/(n_width[local_frame_obj.correct_model]*1.0/capture_frame_width*1.0));
+		int y = (int)(i.y/(n_height[local_frame_obj.correct_model]*1.0/capture_frame_height*1.0));
+		int h = (int)(i.h/(n_height[local_frame_obj.correct_model]*1.0/capture_frame_height*1.0));
 		
 		rectangle(local_frame_obj.frame, Point(x, y), Point(x+w, y+h), Scalar(255, 178, 50), 3);
         if (obj_names.size() > i.obj_id) {
@@ -253,9 +187,17 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
+
+		//receive correct model value
+		err = read(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR reading socket");
+			close(sockfd);
+			exit(1);
+		} 
 		
-		//receive multiplier value
-		err = read(sockfd, &local_frame_obj.multiplier, sizeof(double));
+		//receive used model value
+		err = read(sockfd, &local_frame_obj.used_model, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR reading socket");
 			close(sockfd);
@@ -300,8 +242,22 @@ void *recvrend(void *fd) {
 		} else {
 			printf("frame is %f old while deadline is %f, so it is not on time\n",spent.count(), FRAME_DEADLINE);
 		}
+		
+		printf("correct model : %d, used model : %d\n", local_frame_obj.correct_model, local_frame_obj.used_model);
+		if(local_frame_obj.used_model == local_frame_obj.correct_model){ //correct model is being used, so server is not updating model
+			printf("detector is not updating writing to pipe\n");
+			err = write(frameDeadlinePipe[1], &onTime, sizeof(bool));
+			if (err < 0){
+				perror("ERROR reading from pipe");
+				close(sockfd);
+				exit(1);
+			} 
+		} else {
+			printf("detector is updating, do not write to pipe\n");
+		}
+			
 
-		pthread_mutex_lock(&updateMutex);
+/*		pthread_mutex_lock(&updateMutex);
 		local_detector_update = detector_update; 
 		pthread_mutex_unlock(&updateMutex);
 
@@ -315,7 +271,7 @@ void *recvrend(void *fd) {
 			}
 		} else {
 			printf("detector is updating, do not write to pipe\n");
-		}
+		} */
 
 		//enable next line to use console output
 		//consoleOutput(local_frame_obj, result_vec, curr_frame_id);
@@ -331,7 +287,7 @@ void *capsend(void *fd) {
 	int sockfd = *(int*)fd;
 	int err;
 	vector<uchar> vec;
-	int frame_counter = 0;
+	unsigned int frame_counter = 0;
 	frame_obj local_frame_obj;
 	
 	while(true) {
@@ -351,14 +307,6 @@ void *capsend(void *fd) {
 		pthread_cond_signal(&frameCond);
 		pthread_mutex_unlock(&frameMutex);
 		
-		pthread_mutex_lock(&multiplierMutex);
-		local_frame_obj.multiplier = global_multiplier;
-		pthread_mutex_unlock(&multiplierMutex);
-
-		if (local_frame_obj.multiplier!=1){
-			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(0,0), local_frame_obj.multiplier, local_frame_obj.multiplier, cv::INTER_NEAREST);
-		}
- 		
 		//send frame id 
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
 		if (err < 0){
@@ -375,15 +323,20 @@ void *capsend(void *fd) {
 			exit(1);
 		}
 
-		//send multiplier value
-		err = write(sockfd, &local_frame_obj.multiplier, sizeof(double));
+		//read and send correct model value
+		pthread_mutex_lock(&modelMutex);
+		local_frame_obj.correct_model = curr_model;
+		pthread_mutex_unlock(&modelMutex);
+		
+		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
 		} 
 
-		//encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
+		//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
+		resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
 		imencode(".jpg", local_frame_obj.frame, vec);
 		size_t n = vec.size();
 		err = write(sockfd, &n, sizeof(size_t));
@@ -404,14 +357,11 @@ void *capsend(void *fd) {
 }
 
 //update detector model based on timing of frame results 
-void *updateDetector(void *fd) {
-	int sockfd = *(int*)fd;
+void *control(void *) {
 	int err;
 	bool onTime;
 	
-	int unsigned currentModel = 2;
-	int maxModel = 4;
-	int minModel = 0;
+	int unsigned local_curr_model = 5;
 	
 	//int rememberFrames = 1;
 	//bool lastFrames[rememberFrames];
@@ -421,163 +371,64 @@ void *updateDetector(void *fd) {
 	int onTimeCount = 0;
 	int lateCount = 0;
 	
-	bool update_completed;
-	
-//	int waitFrames = 50;
-//	int framesSinceUpdate = 0;
-	
 	while(true) {
 		err = read(frameDeadlinePipe[0], &onTime, sizeof(bool));
 		if (err < 0){
 			perror("ERROR reading from pipe");
-			close(sockfd);
 			exit(1);
 		}
 		
 		//lastFrames[pos] = onTime;
 		//pos = (pos + 1) % rememberFrames;
 		
-		//framesSinceUpdate += 1;
-		
 		if (onTime) {
 			lateCount = 0;
 			onTimeCount++;
 			printf("frame on time, now %d on time\n", onTimeCount);
-			if (currentModel < maxModel) {
-				if (onTimeCount >= updateAfter) { // && framesSinceUpdate >= waitFrames){
-					currentModel++;
+			if (local_curr_model < MAX_MODEL) {
+				if (onTimeCount >= updateAfter) { 
+					local_curr_model++;
 					onTimeCount = 0;
-					//framesSinceUpdate = 0;
-					printf("current model now : %d\n", currentModel);
-
-					pthread_mutex_lock(&updateMutex);
-					detector_update = true; 
-					pthread_mutex_unlock(&updateMutex);
-
-					err = write(sockfd, &currentModel, sizeof(unsigned int));
-					if (err < 0){
-						perror("ERROR writing to socket");
-						close(sockfd);
-						exit(1);
-					}
+					printf("current model now : %d\n", local_curr_model);
 					
-					printf("send update, waiting for response\n");
-					
-					err = read(sockfd, &update_completed, sizeof(bool));
-					if (err < 0){
-						perror("ERROR writing to socket");
-						close(sockfd);
-						exit(1);
-					}
-					
-					if(update_completed){
-						pthread_mutex_lock(&updateMutex);
-						detector_update = false; 
-						pthread_mutex_unlock(&updateMutex);
-					} else {
-						perror("ERROR detector model update");
-						close(sockfd);
-						exit(1);
-					}
-					printf("update completed, now using model %d\n", currentModel);
+					pthread_mutex_lock(&modelMutex);
+					curr_model = local_curr_model; 
+					pthread_mutex_unlock(&modelMutex);
+					printf("update completed, now using model %d\n", local_curr_model);
 				}
 			}
 		} else { //frame too late 
 			onTimeCount = 0;
 			lateCount++;
 			printf("frame not time, now %d on late\n", lateCount);
-			if (currentModel > minModel) { // && framesSinceUpdate >= waitFrames) {
+			if (local_curr_model > MIN_MODEL) { 
 				if (lateCount >= updateAfter) { 
-					currentModel--;
+					local_curr_model--;
 					lateCount = 0;
-					//framesSinceUpdate = 0;
-					printf("current model now : %d\n", currentModel);
-				
-					pthread_mutex_lock(&updateMutex);
-					detector_update = true; 
-					pthread_mutex_unlock(&updateMutex);
+					printf("current model now : %d\n", local_curr_model);
 
-					err = write(sockfd, &currentModel, sizeof(unsigned int));
-					if (err < 0){
-						perror("ERROR writing to socket");
-						close(sockfd);
-						exit(1);
-					}
-
-					printf("send update, waiting for response\n");
-					
-					err = read(sockfd, &update_completed, sizeof(bool));
-					if (err < 0){
-						perror("ERROR writing to socket");
-						close(sockfd);
-						exit(1);
-					}
-					
-					if(update_completed){
-						pthread_mutex_lock(&updateMutex);
-						detector_update = false; 
-						pthread_mutex_unlock(&updateMutex);
-					} else {
-						perror("ERROR detector model update");
-						close(sockfd);
-						exit(1);
-					}
-					printf("update completed, now using model %d\n", currentModel);
+					pthread_mutex_lock(&modelMutex);
+					curr_model = local_curr_model; 
+					pthread_mutex_unlock(&modelMutex);
+					printf("update completed, now using model %d\n", local_curr_model);
 				}
 			}
 		}
 	}
 }
 
-//receive bandwidth from monitor
-void *monitor(void *fd) {
-	int sockfd = *(int*)fd;
-	int err;
-	unsigned int speed;
-	
-	while(true) {
-		err = read(sockfd, &speed, sizeof(unsigned int));
-		if (err < 0){
-			perror("ERROR reading from socket");
-			close(sockfd);
-			exit(1);
-		} 
-
-		printf("Received speed from monitor, updated speed: %d \n", speed);
-		
-		double local_multiplier;
-		
-		if (speed >= 30) {
-			local_multiplier = 1;
-		} else if (speed >= 20) {
-			local_multiplier = 0.75;
-		} else {
-			local_multiplier = 0.5;
-		}
-		
-		pthread_mutex_lock(&multiplierMutex);
-		global_multiplier = local_multiplier;
-		pthread_mutex_unlock(&multiplierMutex);
- 	}
-} 
-
-
 int main(int argc, char *argv[]) {
 	if(argc < 3){
-		perror("Usage: ./client [server_hostname] [server_port_number] [monitor_port_number] [(optional)path to video].\n");
+		perror("Usage: ./client [server_hostname] [server_port_number] [(optional)path to video].\n");
 		return 1;
 	}
 	
-	int sockfd1, sockfd2, sockfd3, sockfd4, err;
+	int sockfd1, sockfd2, err;
 	
-	connect_to_server(sockfd1, sockfd2, sockfd3, argv);
+	connect_to_server(sockfd1, sockfd2, argv);
 	
-	if (atoi(argv[3]) != 0) {
-		connect_to_monitor(sockfd4, atoi(argv[3]));
-	}
-	
-	if(argc == 5){	//use video file input, gstreamer to enforce realtime reading of frames
-		capture.open(argv[4],CAP_GSTREAMER);
+	if(argc == 4){	//use video file input, gstreamer to enforce realtime reading of frames
+		capture.open(argv[3],CAP_GSTREAMER);
 		if (!capture.isOpened()) {
 			perror("ERROR opening video\n");
 			return 1;
@@ -594,37 +445,32 @@ int main(int argc, char *argv[]) {
 		perror("ERROR creating pipe");
 		close(sockfd1);
 		close(sockfd2);
-		close(sockfd3);
-		close(sockfd4);
 		exit(1);
 	}
-		
+	
+	capture_frame_height = capture.get(CAP_PROP_FRAME_HEIGHT);
+	capture_frame_width = capture.get(CAP_PROP_FRAME_WIDTH);
+	printf("height: %d, width: %d\n", capture_frame_height, capture_frame_width);
+	
+	curr_model = 5;
 	string names_file = "darknet/data/coco.names";
 	obj_names = objects_names_from_file(names_file);
-	global_multiplier = 1;
 	
 	pthread_mutex_init(&frameMutex, NULL);
-	pthread_mutex_init(&multiplierMutex, NULL);
-	pthread_mutex_init(&updateMutex, NULL);
+	pthread_mutex_init(&modelMutex, NULL);
 	pthread_cond_init(&frameCond, NULL);
 	
-	pthread_t thread1, thread2, thread3, thread4;
+	pthread_t thread1, thread2, thread3;
 	pthread_create(&thread1, NULL, capsend, (void*) &sockfd1);
 	pthread_create(&thread2, NULL, recvrend, (void*) &sockfd2);
-	pthread_create(&thread3, NULL, updateDetector, (void*) &sockfd3);
-	if (atoi(argv[3]) != 0) {
-		pthread_create(&thread4, NULL, monitor, (void*) &sockfd4);
-	}
+	pthread_create(&thread3, NULL, control, NULL);
 	
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
 	pthread_join(thread3, NULL);
-	pthread_join(thread4, NULL);
-	
+
 	close(sockfd1);
 	close(sockfd2);
-	close(sockfd3);
-	close(sockfd4);
 	
 	return 0;
 }

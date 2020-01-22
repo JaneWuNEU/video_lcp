@@ -19,12 +19,10 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include "common.h" 
+
 #define OPENCV
 #include "../build/darknet/include/yolo_v2_class.hpp"
-
-#define BUFF_SIZE 2048
-#define MAX_FRAME_BUFFER_SIZE 30
-
 
 using namespace cv;
 using namespace std;
@@ -32,33 +30,21 @@ using namespace std;
 Detector* detectors[2];
 bool useDetector0;
 
-// object that is returned by the server in which information on a detected object is stored
-struct result_obj {
-    unsigned int x, y, w, h;       
-    float prob;                    
-    unsigned int obj_id;          
-};
-
-// frame object that stores all the information about a frame
-struct frame_obj {
-	unsigned int frame_id;
-	std::chrono::system_clock::time_point start;
-	double multiplier;
-	Mat frame;
-};
-
 vector<frame_obj> frame_buffer;
 vector<string> obj_names;
 vector<bbox_t> result_vec;
 
+unsigned int curr_model;
+int modelPipe[2]; //pipe for communicating model ids
+
 pthread_mutex_t bufferMutex;
-pthread_mutex_t detectorBoolMutex;
+pthread_mutex_t detectorMutex;
 pthread_mutex_t detector0Mutex;
 pthread_mutex_t detector1Mutex;
 pthread_cond_t bufferCond;
 
 // make a connection to the client and open two sockets one for sending data, one for receiving data
-void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, int &newsockfd3, char *argv[]) {
+void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, char *argv[]) {
 	int err;
 	struct sockaddr_in servAddr, clientAddr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
@@ -90,7 +76,6 @@ void connect_to_client(int &sockfd, int &newsockfd1, int &newsockfd2, int &newso
 
 	newsockfd1 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 	newsockfd2 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
-	newsockfd3 = accept(sockfd, (struct sockaddr *)&clientAddr, &addrlen);
 }
 
 //function to read all object names from a file so the object id of an object can be matched with a name
@@ -103,34 +88,33 @@ vector<string> objects_names_from_file(string const filename) {
     return file_lines;
 }
 
-void *updateDetectionModel(void *fd) {
-	int sockfd = *(int *)fd;
+void *updateDetectionModel(void *) {
 	int err;
-	unsigned int currModel;
-	//local bool used since this is the only thread that modifies the global version
+	unsigned int new_model;
+	//local bool used since this is the only thread that modifies the global version, which allows for reading without lock
 	bool localUseDetector0 = true;
-	bool scaleUp; //false is scale down
 	
-	string cfg_file0 = "darknet/cfg/yolov3-tiny.cfg";
-    string weights_file0 = "darknet/yolov3-tiny.weights";
-	string cfg_file1 = "darknet/cfg/yolov3_224.cfg";
-    string weights_file1 = "darknet/yolov3.weights";
-	string cfg_file2 = "darknet/cfg/yolov3_320.cfg";
-    string weights_file2 = "darknet/yolov3.weights";
-	string cfg_file3 = "darknet/cfg/yolov3_416.cfg";
-    string weights_file3 = "darknet/yolov3.weights";
-	string cfg_file4 = "darknet/cfg/yolov3_608.cfg";
-    string weights_file4 = "darknet/yolov3.weights";
-	
+	//string weights_file0 = "darknet/yolov3-tiny.weights";
+	//string cfg_file0 = "darknet/cfg/yolov3-tiny.cfg";
+    
+	string weights_file = "darknet/yolov3.weights";
+	string cfg_file0 = "darknet/cfg/yolov3_64_96.cfg";
+    string cfg_file1 = "darknet/cfg/yolov3_128_192.cfg";
+    string cfg_file2 = "darknet/cfg/yolov3_192_288.cfg";
+    string cfg_file3 = "darknet/cfg/yolov3_256_384.cfg";
+    string cfg_file4 = "darknet/cfg/yolov3_320_480.cfg";
+    string cfg_file5 = "darknet/cfg/yolov3_384_576.cfg";
+    string cfg_file6 = "darknet/cfg/yolov3_448_672.cfg";
+    string cfg_file7 = "darknet/cfg/yolov3_512_768.cfg";
+    
 	while (true) {
 		//read from sock to receive message from client
-		err = read(sockfd, &currModel, sizeof(unsigned int));
+		err = read(modelPipe[0], &new_model, sizeof(unsigned int));
 		if (err < 0){
-			perror("ERROR reading socket");
-			close(sockfd);
+			perror("ERROR reading from pipe");
 			exit(1);
-		} 
-		printf("Curr model now : %d\n", currModel);
+		}
+		printf("new model : %d\n", new_model);
 		
 		//if detector0 is being used (by detection thread), update detector 1, else update detector 0
 		if(localUseDetector0){
@@ -139,71 +123,83 @@ void *updateDetectionModel(void *fd) {
 			pthread_mutex_lock(&detector1Mutex);
 		
 			//case currModel 
-			switch(currModel){
+			switch(new_model){
 				case 0: 
-					detectors[1] = new Detector(cfg_file0,weights_file0);
+					detectors[1] = new Detector(cfg_file0,weights_file);
 					break;
 				case 1: 
-					detectors[1] = new Detector(cfg_file1,weights_file1);
+					detectors[1] = new Detector(cfg_file1,weights_file);
 					break;
 				case 2: 
-					detectors[1] = new Detector(cfg_file2,weights_file2);
+					detectors[1] = new Detector(cfg_file2,weights_file);
 					break;
 				case 3: 
-					detectors[1] = new Detector(cfg_file3,weights_file3);
+					detectors[1] = new Detector(cfg_file3,weights_file);
 					break;
 				case 4: 
-					detectors[1] = new Detector(cfg_file4,weights_file4);
+					detectors[1] = new Detector(cfg_file4,weights_file);
+					break;
+				case 5: 
+					detectors[1] = new Detector(cfg_file5,weights_file);
+					break;
+				case 6: 
+					detectors[1] = new Detector(cfg_file6,weights_file);
+					break;
+				case 7: 
+					detectors[1] = new Detector(cfg_file7,weights_file);
 					break;
 			}
 			
 			pthread_mutex_unlock(&detector1Mutex);
 			
-			printf("updated detector 1\n");
 			localUseDetector0 = false; 
-			pthread_mutex_lock(&detectorBoolMutex);
-			useDetector0 = false; 
-			pthread_mutex_unlock(&detectorBoolMutex);
+			pthread_mutex_lock(&detectorMutex);
+			useDetector0 = false;
+			curr_model = new_model;
+			printf("updated detector 1, curr_model : %d \n", curr_model);
+			pthread_mutex_unlock(&detectorMutex);
 			
 		} else {
 			//update detector 0
 			pthread_mutex_lock(&detector0Mutex);
 			
 			//case currModel 
-			switch(currModel){
+			switch(new_model){
 				case 0: 
-					detectors[0] = new Detector(cfg_file0,weights_file0);
+					detectors[0] = new Detector(cfg_file0,weights_file);
 					break;
 				case 1: 
-					detectors[0] = new Detector(cfg_file1,weights_file1);
+					detectors[0] = new Detector(cfg_file1,weights_file);
 					break;
 				case 2: 
-					detectors[0] = new Detector(cfg_file2,weights_file2);
+					detectors[0] = new Detector(cfg_file2,weights_file);
 					break;
 				case 3: 
-					detectors[0] = new Detector(cfg_file3,weights_file3);
+					detectors[0] = new Detector(cfg_file3,weights_file);
 					break;
 				case 4: 
-					detectors[0] = new Detector(cfg_file4,weights_file4);
+					detectors[0] = new Detector(cfg_file4,weights_file);
+					break;
+				case 5: 
+					detectors[0] = new Detector(cfg_file5,weights_file);
+					break;
+				case 6: 
+					detectors[0] = new Detector(cfg_file6,weights_file);
+					break;
+				case 7: 
+					detectors[0] = new Detector(cfg_file7,weights_file);
 					break;
 			}
 			
 			pthread_mutex_unlock(&detector0Mutex);
 			
-			printf("updated detector 0\n");
 			localUseDetector0 = true; 
-			pthread_mutex_lock(&detectorBoolMutex);
-			useDetector0 = true; 
-			pthread_mutex_unlock(&detectorBoolMutex);
-			
+			pthread_mutex_lock(&detectorMutex);
+			useDetector0 = true;
+			curr_model = new_model;
+			printf("updated detector 0, curr_model : %d \n", curr_model);
+			pthread_mutex_unlock(&detectorMutex);
 		}
-		bool update_completed = true;
-		err = write(sockfd, &update_completed, sizeof(bool));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		} 
 	}	
 }
 
@@ -229,9 +225,10 @@ void *getSendResult(void *fd) {
 		pthread_mutex_unlock(&bufferMutex);
 				
 		//check which detector to use
-		pthread_mutex_lock(&detectorBoolMutex);
+		pthread_mutex_lock(&detectorMutex);
 		localUseDetector0 = useDetector0;
-		pthread_mutex_unlock(&detectorBoolMutex);
+		local_frame_obj.used_model = curr_model;
+		pthread_mutex_unlock(&detectorMutex);
 		
 		//perform object detection on the copied frame using detector 0 or 1
 		if(localUseDetector0){
@@ -243,7 +240,7 @@ void *getSendResult(void *fd) {
 			local_result_vec = detectors[1]->detect(local_frame_obj.frame);
 			pthread_mutex_unlock(&detector1Mutex);
 		}
-			
+
 		//temporary timing to see how old the frame is after object detection
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
@@ -265,8 +262,16 @@ void *getSendResult(void *fd) {
 			exit(1);
 		} 
 		
-		//send multiplier value 
-		err = write(sockfd, &local_frame_obj.multiplier, sizeof(double));
+		//send correct model value 
+		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		//send used model value 
+		err = write(sockfd, &local_frame_obj.used_model, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
@@ -308,6 +313,7 @@ void *recvFrame(void *fd) {
 	int err;
 	size_t n;
 	frame_obj local_frame_obj;
+	unsigned int local_curr_model = 5;
 	
 	while (true) {
 		vector<uchar> vec;
@@ -329,13 +335,24 @@ void *recvFrame(void *fd) {
 			exit(1);
 		} 
 		
-		//read multiplier value
-		err = read(sockfd, &local_frame_obj.multiplier, sizeof(double));
+		//read correct model value
+		err = read(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
 		} 
+		
+		if(local_frame_obj.correct_model != local_curr_model){
+			//update model
+			err = write(modelPipe[1], &local_frame_obj.correct_model, sizeof(unsigned int));
+			if (err < 0){
+				perror("ERROR reading from pipe");
+				close(sockfd);
+				exit(1);
+			} 
+			local_curr_model = local_frame_obj.correct_model;
+		}
 				
 		//read the size of the vector containing the frame data 
 		err = read(sockfd,&n,sizeof(size_t));
@@ -388,19 +405,31 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	int sockfd, newsockfd1, newsockfd2, newsockfd3, err, n;
-	connect_to_client(sockfd, newsockfd1, newsockfd2, newsockfd3, argv);
+	int sockfd, newsockfd1, newsockfd2, err, n;
+	connect_to_client(sockfd, newsockfd1, newsockfd2, argv);
 	
 	string names_file = "darknet/data/coco.names";
-	string cfg_file = "darknet/cfg/yolov3_320.cfg";
+	string cfg_file = "darknet/cfg/yolov3_384_576.cfg";
     string weights_file = "darknet/yolov3.weights";
-    
+	
 	detectors[0] = new Detector(cfg_file, weights_file);
 	obj_names = objects_names_from_file(names_file);
+	
 	useDetector0 = true;
+	curr_model = 5;
+	
+	err = pipe(modelPipe);
+	if (err < 0){
+		perror("ERROR creating pipe");
+		close(sockfd);
+		close(newsockfd1);
+		close(newsockfd2);
+		exit(1);
+	}
+
 	
 	pthread_mutex_init(&bufferMutex, NULL);
-	pthread_mutex_init(&detectorBoolMutex, NULL);
+	pthread_mutex_init(&detectorMutex, NULL);
 	pthread_mutex_init(&detector0Mutex, NULL);
 	pthread_mutex_init(&detector1Mutex, NULL);
 	pthread_cond_init(&bufferCond, NULL);
@@ -408,7 +437,7 @@ int main(int argc, char *argv[]) {
 	pthread_t thread1, thread2, thread3;
 	pthread_create(&thread1, NULL, recvFrame, (void *)&newsockfd1);
 	pthread_create(&thread2, NULL, getSendResult, (void *)&newsockfd2);
-	pthread_create(&thread3, NULL, updateDetectionModel, (void *)&newsockfd3);
+	pthread_create(&thread3, NULL, updateDetectionModel, NULL);
 
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
@@ -417,6 +446,5 @@ int main(int argc, char *argv[]) {
 	close(sockfd);
 	close(newsockfd1);
 	close(newsockfd2);
-	close(newsockfd3);
 	return 0;
 }
