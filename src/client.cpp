@@ -240,8 +240,8 @@ void *recvrend(void *fd) {
 				perror("ERROR reading from socket");
 				close(sockfd);
 				exit(1);
-		*/	}
-			result_vec.push_back(obj); 
+		  	} */
+ 			result_vec.push_back(obj); 
 		}
 		
 		printf("read all objects done \n");
