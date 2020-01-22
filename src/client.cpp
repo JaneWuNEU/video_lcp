@@ -222,13 +222,26 @@ void *recvrend(void *fd) {
 		//for each located object, receive one result_obj and store this in the result vector
 		for (size_t i = 0; i < n; ++i) {
 			result_obj obj;
-			err = read(sockfd,&obj,sizeof(result_obj));
+			err = read(sockfd, &obj.x, sizeof(unsigned int)); 
+			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
+			err = read(sockfd, &obj.y, sizeof(unsigned int)); 
+			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
+			err = read(sockfd, &obj.w, sizeof(unsigned int)); 
+			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
+			err = read(sockfd, &obj.h, sizeof(unsigned int)); 
+			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
+			err = read(sockfd, &obj.prob, sizeof(float)); 
+			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
+			err = read(sockfd, &obj.obj_id, sizeof(unsigned int)); 
+			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
+			
+		/*	err = read(sockfd,&obj,sizeof(result_obj));
 			if (err < 0){ 
 				perror("ERROR reading from socket");
 				close(sockfd);
 				exit(1);
-			}
-			result_vec.push_back(obj);
+		*/	}
+			result_vec.push_back(obj); 
 		}
 		
 		printf("read all objects done \n");
