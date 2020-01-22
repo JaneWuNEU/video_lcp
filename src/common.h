@@ -1,8 +1,9 @@
 #define BUFF_SIZE 2048
 #define MAX_FRAME_BUFFER_SIZE 30
-#define FRAME_DEADLINE 0.20
+#define FRAME_DEADLINE 0.04
 #define MAX_MODEL 7
 #define MIN_MODEL 0
+#define STARTING_MODEL 3
 
 // object that is returned by the server in which information on a detected object is stored
 struct result_obj {					

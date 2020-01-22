@@ -35,7 +35,7 @@ unsigned int curr_model;
 int capture_frame_height;
 int capture_frame_width;
 
-int frameDeadlinePipe[2]; //pipe for communicating if frame results are received on time
+int controlPipe[2]; //pipe for communicating if frame results are received on time
 bool detector_update;
 
 
@@ -254,18 +254,33 @@ void *recvrend(void *fd) {
 		//check how old frame is to see if it is past the deadline or not and write to pipe
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
-		bool onTime = (spent.count() <= FRAME_DEADLINE) ? true : false;
+		double time_spent = spent.count();
+		/*bool onTime = (spent.count() <= FRAME_DEADLINE) ? true : false;
 		
 		if (onTime) {
 			//printf("frame is %f old while deadline is %f, so it is on time\n",spent.count(), FRAME_DEADLINE);
 		} else {
 			//printf("frame is %f old while deadline is %f, so it is not on time\n",spent.count(), FRAME_DEADLINE);
-		}
+		} */
 		
 		printf("R | id %d | correct model %d | used model %d | objects %zu | time %f\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, n, spent.count());
-		if(local_frame_obj.used_model == local_frame_obj.correct_model){ //correct model is being used, so server is not updating model
+		
+		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR reading from pipe");
+			close(sockfd);
+			exit(1);
+		}
+		err = write(controlPipe[1], &time_spent, sizeof(double));
+		if (err < 0){
+			perror("ERROR reading from pipe");
+			close(sockfd);
+			exit(1);
+		}
+		
+		/*if(local_frame_obj.used_model == local_frame_obj.correct_model){ //correct model is being used, so server is not updating model
 			//printf("detector is not updating writing to pipe\n");
-			err = write(frameDeadlinePipe[1], &onTime, sizeof(bool));
+			err = write(controlPipe[1], &onTime, sizeof(bool));
 			if (err < 0){
 				perror("ERROR reading from pipe");
 				close(sockfd);
@@ -273,7 +288,7 @@ void *recvrend(void *fd) {
 			} 
 		} else {
 			//printf("detector is updating, do not write to pipe\n");
-		}
+		} */
 			
 
 /*		pthread_mutex_lock(&updateMutex);
@@ -282,7 +297,7 @@ void *recvrend(void *fd) {
 
 		if(!local_detector_update){
 			printf("detector is not updating writing to pipe\n");
-			err = write(frameDeadlinePipe[1], &onTime, sizeof(bool));
+			err = write(controlPipe[1], &onTime, sizeof(bool));
 			if (err < 0){
 				perror("ERROR reading from pipe");
 				close(sockfd);
@@ -323,7 +338,9 @@ void *capsend(void *fd) {
 		//copy local frame into the global frame variable so it can be used for rendering of an image
 		pthread_mutex_lock(&frameMutex);
 		global_frame_obj = local_frame_obj;
-		pthread_cond_signal(&frameCond);
+		if (frame_counter == 1) {
+			pthread_cond_signal(&frameCond);
+		}
 		pthread_mutex_unlock(&frameMutex);
 		
 		//send frame id 
@@ -385,36 +402,77 @@ void *capsend(void *fd) {
 //update detector model based on timing of frame results 
 void *control(void *) {
 	int err;
-	bool onTime;
+	double spent;
+	unsigned int used_model;
+	unsigned int local_curr_model = STARTING_MODEL;
 	
-	int unsigned local_curr_model = 5;
+	vector<bool> control_buffer;
+	int pos = 0;
+	int control_window = 50;
 	
-	//int rememberFrames = 1;
-	//bool lastFrames[rememberFrames];
-	//int pos = 0;
-	
-	int updateAfter = 50;
-	int onTimeCount = 0;
-	int lateCount = 0;
+	int update_after = 50;
+	int on_time_count = 0;
+	int late_count = 0;
 	
 	while(true) {
-		err = read(frameDeadlinePipe[0], &onTime, sizeof(bool));
+		err = read(controlPipe[0], &used_model, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR reading from pipe");
+			exit(1);
+		}
+		err = read(controlPipe[0], &spent, sizeof(double));
 		if (err < 0){
 			perror("ERROR reading from pipe");
 			exit(1);
 		}
 		
-		//lastFrames[pos] = onTime;
-		//pos = (pos + 1) % rememberFrames;
+		if (used_model != local_curr_model) {
+			continue;
+		}
 		
-		if (onTime) {
-			lateCount = 0;
-			onTimeCount++;
-			//printf("frame on time, now %d on time\n", onTimeCount);
-			if (local_curr_model < MAX_MODEL) {
-				if (onTimeCount >= updateAfter) { 
+		bool on_time = (spent <= FRAME_DEADLINE) ? true : false;
+		
+		if (control_buffer.size() == control_window) { //control window full
+			control_buffer[pos] = on_time;
+			pos = (pos + 1) % control_window;
+				
+			int total_on_time = count(control_buffer.begin(), control_buffer.end(), true);
+			if (total_on_time >= 45) { //90% of frames on time
+				if (local_curr_model < MAX_MODEL) {
 					local_curr_model++;
-					onTimeCount = 0;
+					control_buffer.clear();
+					pos = 0;
+					printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
+					
+					pthread_mutex_lock(&modelMutex);
+					curr_model = local_curr_model; 
+					pthread_mutex_unlock(&modelMutex);
+				}
+			} else if (total_on_time <= 20) { //40% of frames on time
+				if(local_curr_model > MIN_MODEL) {
+					local_curr_model--;
+					control_buffer.clear();
+					pos = 0;
+					printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
+					
+					pthread_mutex_lock(&modelMutex);
+					curr_model = local_curr_model; 
+					pthread_mutex_unlock(&modelMutex);
+				}
+			}
+		} else {
+			control_buffer.push_back(on_time);
+		}
+
+/*		
+		if (on_time) {
+			late_count = 0;
+			on_time_count++;
+			//printf("frame on time, now %d on time\n", on_time_count);
+			if (local_curr_model < MAX_MODEL) {
+				if (on_time_count >= update_after) { 
+					local_curr_model++;
+					on_time_count = 0;
 					printf("U | current model %d\n", local_curr_model);
 					
 					pthread_mutex_lock(&modelMutex);
@@ -424,13 +482,13 @@ void *control(void *) {
 				}
 			}
 		} else { //frame too late 
-			onTimeCount = 0;
-			lateCount++;
-			//printf("frame not time, now %d on late\n", lateCount);
+			on_time_count = 0;
+			late_count++;
+			//printf("frame not time, now %d on late\n", late_count);
 			if (local_curr_model > MIN_MODEL) { 
-				if (lateCount >= updateAfter) { 
+				if (late_count >= update_after) { 
 					local_curr_model--;
-					lateCount = 0;
+					late_count = 0;
 					printf("U | current model %d\n", local_curr_model);
 
 					pthread_mutex_lock(&modelMutex);
@@ -439,7 +497,7 @@ void *control(void *) {
 					//printf("update completed, now using model %d\n", local_curr_model);
 				}
 			}
-		}
+		} */
 	}
 }
 
@@ -466,7 +524,7 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 	}
-	err = pipe(frameDeadlinePipe);
+	err = pipe(controlPipe);
 	if (err < 0){
 		perror("ERROR creating pipe");
 		close(sockfd1);
@@ -478,7 +536,7 @@ int main(int argc, char *argv[]) {
 	capture_frame_width = capture.get(CAP_PROP_FRAME_WIDTH);
 	printf("height: %d, width: %d\n", capture_frame_height, capture_frame_width);
 	
-	curr_model = 5;
+	curr_model = STARTING_MODEL;
 	string names_file = "darknet/data/coco.names";
 	obj_names = objects_names_from_file(names_file);
 	
