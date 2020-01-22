@@ -16,8 +16,8 @@ struct frame_obj {
 	unsigned int frame_id;
 	std::chrono::system_clock::time_point start;
 	std::chrono::duration<double> detection_time;
-	int correct_model;
-	int used_model;
+	unsigned int correct_model;
+	unsigned int used_model;
 	cv::Mat frame;
 };
 
