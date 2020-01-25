@@ -397,9 +397,9 @@ void *recvFrame(void *fd) {
 		if(local_frame_obj.correct_model != local_curr_model){
 			//update model
 			//printf("R: writing to update model to %d\n",local_frame_obj.correct_model);  
+			printf("U | frame %d | writing %d | local %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
 			err = write(modelPipe[1], &local_frame_obj.correct_model, sizeof(unsigned int));
 			if (err < 0){
-				printf("U | writing %d | local %d \n", local_frame_obj.correct_model, local_curr_model);
 				perror("ERROR reading from pipe");
 				close(sockfd);
 				exit(1);
