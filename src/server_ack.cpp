@@ -513,26 +513,23 @@ int main(int argc, char *argv[]) {
 	
 	useDetector0 = true;
 	curr_model = STARTING_MODEL;
-
-	//connect to client
-	int sockfd, newsockfd1, newsockfd2, err, n;
-	connect_to_client(sockfd, newsockfd1, newsockfd2, argv);
 	
+	int err;
 	err = pipe(modelPipe);
 	if (err < 0){
 		perror("ERROR creating pipe");
-		close(sockfd);
-		close(newsockfd1);
-		close(newsockfd2);
 		exit(1);
 	}
 
-	
 	pthread_mutex_init(&bufferMutex, NULL);
 	pthread_mutex_init(&detectorMutex, NULL);
 	pthread_mutex_init(&detector0Mutex, NULL);
 	pthread_mutex_init(&detector1Mutex, NULL);
 	pthread_cond_init(&bufferCond, NULL);
+	
+	//connect to client
+	int sockfd, newsockfd1, newsockfd2;
+	connect_to_client(sockfd, newsockfd1, newsockfd2, argv);
 	
 	pthread_t thread1, thread2, thread3;
 	pthread_create(&thread1, NULL, recvFrame, (void *)&newsockfd1);

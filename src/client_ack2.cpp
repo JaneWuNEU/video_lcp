@@ -38,9 +38,9 @@ int capture_frame_width;
 string shaping_input;
 bool shaping = true;
 
+
 int controlPipe[2]; //pipe for communicating if frame results are received on time
 bool detector_update;
-
 
 // make a connection to the server and open two sockets one for sending data, one for receiving data
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]) {
@@ -328,8 +328,6 @@ void *capsend(void *fd) {
 	frame_obj local_frame_obj;
 	size_t buffer_size;
 	
-	//system("../simulation/shape.sh ../simulation/sample.txt &");
-	
 	pid_t pid = fork();
 	if(pid < 0){
 		perror("fork failed");
@@ -342,6 +340,72 @@ void *capsend(void *fd) {
 		printf("child execl done\n");
 	} else {
 		printf("parent continues\n");
+	
+		//first do single cycle so there is always data in pipe
+		capture.read(local_frame_obj.frame);
+		if (local_frame_obj.frame.empty()) {
+			perror("ERROR no frame\n");
+			exit(1);
+		}
+		local_frame_obj.start = std::chrono::system_clock::now();
+		local_frame_obj.frame_id = frame_counter;
+		frame_counter++;
+		
+		//copy local frame into the global frame variable so it can be used for rendering of an image
+		pthread_mutex_lock(&frameMutex);
+		global_frame_obj = local_frame_obj;
+		pthread_cond_signal(&frameCond);
+		pthread_mutex_unlock(&frameMutex);
+		
+		//send frame id 
+		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		//send capture time of frame
+		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		}
+
+		//read and send correct model value
+		pthread_mutex_lock(&modelMutex);
+		local_frame_obj.correct_model = curr_model;
+		pthread_mutex_unlock(&modelMutex);
+		
+		//printf("S: %d correct model %d\n",  local_frame_obj.frame_id, local_frame_obj.correct_model);
+		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+
+		//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
+		resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
+		imencode(".jpg", local_frame_obj.frame, vec);
+		size_t n = vec.size();
+		
+		err = write(sockfd, &n, sizeof(size_t));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		err = write(sockfd, vec.data(), vec.size());
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		printf("S | id %d | correct model %d | vec size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, n);
+
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
 			capture.read(local_frame_obj.frame);

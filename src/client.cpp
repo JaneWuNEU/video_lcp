@@ -35,9 +35,11 @@ unsigned int curr_model;
 int capture_frame_height;
 int capture_frame_width;
 
+string shaping_input;
+bool shaping = true;
+
 int controlPipe[2]; //pipe for communicating if frame results are received on time
 bool detector_update;
-
 
 // make a connection to the server and open two sockets one for sending data, one for receiving data
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]) {
@@ -324,78 +326,93 @@ void *capsend(void *fd) {
 	unsigned int frame_counter = 0;
 	frame_obj local_frame_obj;
 	
-	while(true) {
-		//capture frame into local frame object so capturing is not done within mutex
-		capture.read(local_frame_obj.frame);
-		if (local_frame_obj.frame.empty()) {
-			perror("ERROR no frame\n");
-			break;
-		}
-		local_frame_obj.start = std::chrono::system_clock::now();
-		local_frame_obj.frame_id = frame_counter;
-		frame_counter++;
-		
-		//copy local frame into the global frame variable so it can be used for rendering of an image
-		pthread_mutex_lock(&frameMutex);
-		global_frame_obj = local_frame_obj;
-		if (frame_counter == 1) {
-			pthread_cond_signal(&frameCond);
-		}
-		pthread_mutex_unlock(&frameMutex);
-		
-		//send frame id 
-		//printf("S: %d\n",  local_frame_obj.frame_id);
-		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		} 
-		
-		//send capture time of frame
-		//printf("S: %d capture time\n",  local_frame_obj.frame_id);
-		err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		}
+	//system("../simulation/shape.sh ../simulation/lte-ugent-bw.txt");
+	
+	pid_t pid = fork();
+	if(pid < 0){
+		perror("fork failed");
+		close(sockfd);
+		exit(1);
+	} else if (pid == 0) {
+		printf("child spawns\n");
+		execl("/bin/bash", "bash", "../simulation/shape.sh", "../simulation/sample.txt");
+		//sleep(1);
+		printf("child execl done\n");
+	} else {
+		printf("parent continues\n");
+		while(true) {
+			//capture frame into local frame object so capturing is not done within mutex
+			capture.read(local_frame_obj.frame);
+			if (local_frame_obj.frame.empty()) {
+				perror("ERROR no frame\n");
+				break;
+			}
+			local_frame_obj.start = std::chrono::system_clock::now();
+			local_frame_obj.frame_id = frame_counter;
+			frame_counter++;
+			
+			//copy local frame into the global frame variable so it can be used for rendering of an image
+			pthread_mutex_lock(&frameMutex);
+			global_frame_obj = local_frame_obj;
+			if (frame_counter == 1) {
+				pthread_cond_signal(&frameCond);
+			}
+			pthread_mutex_unlock(&frameMutex);
+			
+			//send frame id 
+			//printf("S: %d\n",  local_frame_obj.frame_id);
+			err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
+			if (err < 0){
+				perror("ERROR writing to socket");
+				close(sockfd);
+				exit(1);
+			} 
+			
+			//send capture time of frame
+			//printf("S: %d capture time\n",  local_frame_obj.frame_id);
+			err = write(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
+			if (err < 0){
+				perror("ERROR writing to socket");
+				close(sockfd);
+				exit(1);
+			}
 
-		//read and send correct model value
-		pthread_mutex_lock(&modelMutex);
-		local_frame_obj.correct_model = curr_model;
-		pthread_mutex_unlock(&modelMutex);
-		
-		//printf("S: %d correct model %d\n",  local_frame_obj.frame_id, local_frame_obj.correct_model);
-		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		} 
+			//read and send correct model value
+			pthread_mutex_lock(&modelMutex);
+			local_frame_obj.correct_model = curr_model;
+			pthread_mutex_unlock(&modelMutex);
+			
+			//printf("S: %d correct model %d\n",  local_frame_obj.frame_id, local_frame_obj.correct_model);
+			err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
+			if (err < 0){
+				perror("ERROR writing to socket");
+				close(sockfd);
+				exit(1);
+			} 
 
-		//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
-		resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
-		imencode(".jpg", local_frame_obj.frame, vec);
-		size_t n = vec.size();
-		//printf("S: %d vec size : %zu\n",  local_frame_obj.frame_id, n);
+			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
+			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
+			imencode(".jpg", local_frame_obj.frame, vec);
+			size_t n = vec.size();
+			//printf("S: %d vec size : %zu\n",  local_frame_obj.frame_id, n);
 
-		err = write(sockfd, &n, sizeof(size_t));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		} 
-		
-		err = write(sockfd, vec.data(), vec.size());
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		} 
-		//printf("S: image %d written\n", local_frame_obj.frame_id);
-		printf("S | id %d | correct model %d | vec size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, n);
-		//imshow("Live", frame);
+			err = write(sockfd, &n, sizeof(size_t));
+			if (err < 0){
+				perror("ERROR writing to socket");
+				close(sockfd);
+				exit(1);
+			} 
+			
+			err = write(sockfd, vec.data(), vec.size());
+			if (err < 0){
+				perror("ERROR writing to socket");
+				close(sockfd);
+				exit(1);
+			} 
+			//printf("S: image %d written\n", local_frame_obj.frame_id);
+			printf("S | id %d | correct model %d | vec size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, n);
+			//imshow("Live", frame);
+		}
 	}
 }
 
@@ -503,7 +520,7 @@ void *control(void *) {
 
 int main(int argc, char *argv[]) {
 	if(argc < 3){
-		perror("Usage: ./client [server_hostname] [server_port_number] [(optional)path to video].\n");
+		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video].\n");
 		return 1;
 	}
 	
@@ -511,8 +528,16 @@ int main(int argc, char *argv[]) {
 	
 	connect_to_server(sockfd1, sockfd2, argv);
 	
-	if(argc == 4){	//use video file input, gstreamer to enforce realtime reading of frames
-		capture.open(argv[3],CAP_GSTREAMER);
+	if(argv[3] == 0){
+		printf("no shaping\n");
+		shaping = false;
+	} else {
+		shaping_input = argv[3];
+		printf("shaping file : %s\n", shaping_input.c_str());
+	}
+	
+	if(argc == 5){	//use video file input, gstreamer to enforce realtime reading of frames
+		capture.open(argv[4],CAP_GSTREAMER);
 		if (!capture.isOpened()) {
 			perror("ERROR opening video\n");
 			return 1;
