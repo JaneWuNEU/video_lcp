@@ -337,7 +337,7 @@ void *capsend(void *fd) {
 		exit(1);
 	} else if (pid == 0) {
 		printf("child spawns\n");
-		execl("/bin/bash", "bash", "../simulation/shape.sh", "../simulation/sample.txt");
+		execl("/bin/bash", "bash", "../simulation/shape.sh", shaping_input.c_str());
 		//sleep(1);
 		printf("child execl done\n");
 	} else {
