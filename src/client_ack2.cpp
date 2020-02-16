@@ -335,8 +335,9 @@ void *capsend(void *fd) {
 		exit(1);
 	} else if (pid == 0) {
 		printf("child spawns\n");
-		execl("/bin/bash", "bash", "../simulation/shape.sh", shaping_input.c_str());
-		//sleep(1);
+		if(shaping){
+			execl("/bin/bash", "bash", "../simulation/shape.sh", shaping_input.c_str());
+		}
 		printf("child execl done\n");
 	} else {
 		printf("parent continues\n");
@@ -601,7 +602,7 @@ int main(int argc, char *argv[]) {
 	
 	connect_to_server(sockfd1, sockfd2, argv);
 	
-	if(argv[3] == 0){
+	if(strcmp(argv[3], "0") == 0){
 		printf("no shaping\n");
 		shaping = false;
 	} else {
