@@ -1,6 +1,5 @@
 19:23:46.427396303 BW set to 1.920070400000000177e+01 mbit
 R | id 0 | correct model 3 | used model 3 | time 0.083648 | objects 1 
-QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
 R | id 1 | correct model 3 | used model 3 | time 0.091498 | objects 1 
 R | id 2 | correct model 3 | used model 3 | time 0.049978 | objects 1 
 R | id 3 | correct model 3 | used model 3 | time 0.051485 | objects 1 
