@@ -11,6 +11,7 @@
 #include <sstream>
 #include <fstream>
 #include <pthread.h>
+#include <chrono>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
@@ -488,7 +489,7 @@ void *control(void *) {
 					local_curr_model++;
 					control_buffer.clear();
 					pos = 0;
-					printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
+					//printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
 					
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
@@ -499,7 +500,7 @@ void *control(void *) {
 					local_curr_model--;
 					control_buffer.clear();
 					pos = 0;
-					printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
+					//printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
 					
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 

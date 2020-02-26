@@ -11,6 +11,7 @@
 #include <sstream>
 #include <fstream>
 #include <pthread.h>
+#include <chrono>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>

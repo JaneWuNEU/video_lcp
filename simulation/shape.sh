@@ -4,7 +4,8 @@ export LC_NUMERIC=en_US.UTF-8
 input_file=$1
 mapfile -t list < $input_file
 
-tc_adapter=wlp59s0 #set to wifi/ethernet adapter
+tc_adapter=wlp59s0 #wifi
+#tc_adapter=enx106530c1958e #eth
 
 t=$(sleepenh 0)
 
@@ -13,6 +14,9 @@ sudo tc qdisc add dev $tc_adapter root handle 1: htb default 11
 sudo tc class add dev $tc_adapter parent 1: classid 1:11 htb rate 10mbit
 
 #iperf3 -c netmsys.org -p 10001 -t 1000 &
+iperf3 -c fs0.das5.cs.vu.nl -p 10003 -t 1000 &
+
+SECONDS=0
 
 for item in ${list[@]}
 do
@@ -20,11 +24,48 @@ do
  	then 
 		continue
 	fi
-	date +"B | %H:%M:%S.%N | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
-	
 	
 	sudo tc class change dev $tc_adapter parent 1: classid 1:11 htb rate "${item//[$'\t\r\n ']}"mbit
 	
+	#date +"B | %H:%M:%S.%N | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+	
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+	
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+	
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+	
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+	
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+	
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+	
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	t=$(sleepenh $t 1)
+	
+	duration=$SECONDS
+	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	t=$(sleepenh $t 1)
 done
 

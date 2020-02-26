@@ -25,6 +25,9 @@ add_executable( server_ack src/server_ack.cpp )
 add_executable( client_ack src/client_ack.cpp )
 add_executable( client_ack2 src/client_ack2.cpp )
 add_executable( detection src/detection.cpp )
+add_executable( test_client src/test.cpp)
+add_executable( test_server src/test_s.cpp)
+
 
 target_link_libraries( server ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )
 target_link_libraries( client ${OpenCV_LIBS} ${DARKNET_LIB_NAME} )

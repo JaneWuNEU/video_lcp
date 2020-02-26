@@ -11,6 +11,7 @@
 #include <sstream>
 #include <fstream>
 #include <pthread.h>
+#include <chrono>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
@@ -375,7 +376,10 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-			//printf("S | ack for id %d\n", local_frame_obj.frame_id);
+			auto end = std::chrono::system_clock::now();
+			std::chrono::duration<double> spent = end - local_frame_obj.start;
+			double time_spent = spent.count();
+			printf("S | ack for id %d | it is %f old\n", local_frame_obj.frame_id, time_spent);
 		}
 	}
 }
@@ -422,7 +426,7 @@ void *control(void *) {
 					local_curr_model++;
 					control_buffer.clear();
 					pos = 0;
-					printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
+					//printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
 					
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
@@ -433,7 +437,7 @@ void *control(void *) {
 					local_curr_model--;
 					control_buffer.clear();
 					pos = 0;
-					printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
+					//printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
 					
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
