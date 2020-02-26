@@ -379,7 +379,7 @@ void *capsend(void *fd) {
 			auto end = std::chrono::system_clock::now();
 			std::chrono::duration<double> spent = end - local_frame_obj.start;
 			double time_spent = spent.count();
-			printf("S | ack for id %d | it is %f old\n", local_frame_obj.frame_id, time_spent);
+			//printf("S | ack for id %d | it is %f old\n", local_frame_obj.frame_id, time_spent);
 		}
 	}
 }

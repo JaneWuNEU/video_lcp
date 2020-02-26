@@ -462,7 +462,7 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		printf("R | ack for id %d\n", local_frame_obj.frame_id);
+		//printf("R | ack for id %d\n", local_frame_obj.frame_id);
 	}
 }
 
