@@ -95,29 +95,30 @@ int main(int argc, char *argv[])
         return -1;
     }
 		
-	cv::resize(image, image2, cv::Size(width,height), 1, 1, cv::INTER_AREA);
+	cv::resize(image, image2, cv::Size(width,height), 1, 1, cv::INTER_NEAREST);
 		
 	std::vector<bbox_t> result_vec;
 	//auto det_image = detector.mat_to_image_resize(image2);
 	//std::vector<bbox_t> result_vec = detector.detect_resized(*det_image, image2.size().width, image2.size().height);
 	
 	auto start = std::chrono::steady_clock::now();
-	
-	for(int i =0; i<100; i++){
-		//start = std::chrono::steady_clock::now();
-		result_vec = detectors[0]->detect(image2);
-		//end = std::chrono::steady_clock::now();
-		//spent = end - start;
-		//std::cout << spent.count() << "sec\n";
-	}
 	auto end = std::chrono::steady_clock::now();
 	std::chrono::duration<double> spent;
-	spent = end - start;
-	std::cout << spent.count()/100 << "sec\n";
 	
+	for(int i =0; i<10000; i++){
+		start = std::chrono::steady_clock::now();
+		result_vec = detectors[0]->detect(image2);
+		end = std::chrono::steady_clock::now();
+		spent = end - start;
+		std::cout << spent.count() << "sec\n";
+	}
+	//auto end = std::chrono::steady_clock::now();
+	//std::chrono::duration<double> spent;
+	//spent = end - start;
+	//std::cout << spent.count()/100 << "sec\n";
 	
 	show_console_result(result_vec, obj_names);
-	draw_boxes(image2, result_vec, obj_names, 1);
-	cv::imshow("Result", image2);
-	cv::waitKey(0);
+	//draw_boxes(image2, result_vec, obj_names, 1);
+	//cv::imshow("Result", image2);
+	//cv::waitKey(0);
 }
