@@ -346,7 +346,7 @@ void *capsend(void *fd) {
 			} 
 
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
-			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
+			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_AREA);
 			imencode(".jpg", local_frame_obj.frame, vec);
 			size_t n = vec.size();
 
