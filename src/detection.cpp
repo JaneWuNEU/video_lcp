@@ -20,6 +20,9 @@
 
 #include "common.h"
 
+#include <sys/types.h>
+#include <dirent.h>
+
 static std::unique_ptr<Detector> detector;
 static std::unique_ptr<Detector> detector2;
 
@@ -50,9 +53,10 @@ void draw_boxes(cv::Mat mat_img, std::vector<bbox_t> result_vec, std::vector<std
 void show_console_result(std::vector<bbox_t> const result_vec, std::vector<std::string> const obj_names, int frame_id = -1) {
     if (frame_id >= 0) std::cout << " Frame: " << frame_id << std::endl;
     for (auto &i : result_vec) {
-        if (obj_names.size() > i.obj_id) std::cout << obj_names[i.obj_id] << " - ";
-        std::cout << std::setprecision(3) << i.prob << std::endl;
+        if (obj_names.size() > i.obj_id) std::cout << obj_names[i.obj_id];
+        printf(" %.3f | ",i.prob);
     }
+	std::cout << std::endl;
 }
 
 std::vector<std::string> objects_names_from_file(std::string const filename) {
@@ -71,7 +75,7 @@ int main(int argc, char *argv[])
 	auto obj_names = objects_names_from_file(names_file);
 	
 	if(argc < 4){
-		perror("Usage: ./detection darknet/cfg/yolov3_x_x.cfg resize_height resize_width image\n");
+		perror("Usage: ./detection darknet/cfg/yolov3_x_x.cfg resize_height resize_width path_to_img_folder\n");
 		return 1;
 	}
 
@@ -87,37 +91,37 @@ int main(int argc, char *argv[])
 	detectors[0] = new Detector(cfg_file, weights_file);
 	
 	cv::Mat image, image2;
-	std::vector<uchar> vec;
-	image = cv::imread( argv[4], 1 );
-    if ( !image.data )
-    {
-        printf("No image data \n");
-        return -1;
-    }
-		
-	cv::resize(image, image2, cv::Size(width,height), 1, 1, cv::INTER_NEAREST);
-		
 	std::vector<bbox_t> result_vec;
-	//auto det_image = detector.mat_to_image_resize(image2);
-	//std::vector<bbox_t> result_vec = detector.detect_resized(*det_image, image2.size().width, image2.size().height);
 	
+	DIR* dirp = opendir(argv[4]);
+    struct dirent * dp;
+    
 	auto start = std::chrono::steady_clock::now();
 	auto end = std::chrono::steady_clock::now();
 	std::chrono::duration<double> spent;
+	int i = 0;	
 	
-	for(int i =0; i<10000; i++){
-		start = std::chrono::steady_clock::now();
-		result_vec = detectors[0]->detect(image2);
-		end = std::chrono::steady_clock::now();
-		spent = end - start;
-		std::cout << spent.count() << "sec\n";
+	while ((dp = readdir(dirp)) != NULL) {
+	    if( strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0 ) {
+			std::string name = dp->d_name;
+			image = cv::imread(argv[4] + name, 1 );
+			if ( !image.data ) {
+				printf("No image data \n");
+				return -1;
+			}
+			cv::resize(image, image2, cv::Size(width,height), 1, 1, cv::INTER_NEAREST);
+			start = std::chrono::steady_clock::now();
+			result_vec = detectors[0]->detect(image2);
+			end = std::chrono::steady_clock::now();
+			spent = end - start;
+			std::cout << i << " | " << spent.count() << " | ";
+			show_console_result(result_vec, obj_names);
+			i++;
+		}
 	}
-	//auto end = std::chrono::steady_clock::now();
-	//std::chrono::duration<double> spent;
-	//spent = end - start;
-	//std::cout << spent.count()/100 << "sec\n";
 	
-	show_console_result(result_vec, obj_names);
+    closedir(dirp);
+	
 	//draw_boxes(image2, result_vec, obj_names, 1);
 	//cv::imshow("Result", image2);
 	//cv::waitKey(0);
