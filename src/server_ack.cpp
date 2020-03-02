@@ -95,19 +95,6 @@ void *updateDetectionModel(void *) {
 	//local bool used since this is the only thread that modifies the global version, which allows for reading without lock
 	bool localUseDetector0 = true;
 	
-	//string weights_file0 = "darknet/yolov3-tiny.weights";
-	//string cfg_file0 = "darknet/cfg/yolov3-tiny.cfg";
-    
-	string weights_file = "darknet/yolov3.weights";
-	string cfg_file0 = "darknet/cfg/yolov3_64_96.cfg";
-    string cfg_file1 = "darknet/cfg/yolov3_128_192.cfg";
-    string cfg_file2 = "darknet/cfg/yolov3_192_288.cfg";
-    string cfg_file3 = "darknet/cfg/yolov3_256_384.cfg";
-    string cfg_file4 = "darknet/cfg/yolov3_320_480.cfg";
-    string cfg_file5 = "darknet/cfg/yolov3_384_576.cfg";
-    string cfg_file6 = "darknet/cfg/yolov3_448_672.cfg";
-    string cfg_file7 = "darknet/cfg/yolov3_512_768.cfg";
-    
 	while (true) {
 		//read from sock to receive message from client
 		err = read(modelPipe[0], &new_model, sizeof(unsigned int));
