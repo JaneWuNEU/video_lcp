@@ -128,38 +128,24 @@ void *updateDetectionModel(void *) {
 		
 			//case currModel 
 			switch(new_model){
-				case 0: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file0,weights_file);
-					break;
-				case 1: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file1,weights_file);
-					break;
-				case 2: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file2,weights_file);
-					break;
-				case 3: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file3,weights_file);
-					break;
-				case 4: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file4,weights_file);
-					break;
-				case 5: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file5,weights_file);
-					break;
-				case 6: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file6,weights_file);
-					break;
-				case 7: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file7,weights_file);
-					break;
+				case 0: delete detectors[1]; detectors[1] = new Detector(cfg_file0,weights_file); break;
+				case 1: delete detectors[1]; detectors[1] = new Detector(cfg_file1,weights_file); break;
+				case 2: delete detectors[1]; detectors[1] = new Detector(cfg_file2,weights_file); break;
+				case 3: delete detectors[1]; detectors[1] = new Detector(cfg_file3,weights_file); break;
+				case 4: delete detectors[1]; detectors[1] = new Detector(cfg_file4,weights_file); break;
+				case 5: delete detectors[1]; detectors[1] = new Detector(cfg_file5,weights_file); break;
+				case 6: delete detectors[1]; detectors[1] = new Detector(cfg_file6,weights_file); break;
+				case 7: delete detectors[1]; detectors[1] = new Detector(cfg_file7,weights_file); break;
+				case 8: delete detectors[1]; detectors[1] = new Detector(cfg_file8,weights_file); break;
+				case 9: delete detectors[1]; detectors[1] = new Detector(cfg_file9,weights_file); break;
+				case 10: delete detectors[1]; detectors[1] = new Detector(cfg_file10,weights_file); break;
+				case 11: delete detectors[1]; detectors[1] = new Detector(cfg_file11,weights_file); break;
+				case 12: delete detectors[1]; detectors[1] = new Detector(cfg_file12,weights_file); break;
+				case 13: delete detectors[1]; detectors[1] = new Detector(cfg_file13,weights_file); break;
+				case 14: delete detectors[1]; detectors[1] = new Detector(cfg_file14,weights_file); break;
+				case 15: delete detectors[1]; detectors[1] = new Detector(cfg_file15,weights_file); break;
+				case 16: delete detectors[1]; detectors[1] = new Detector(cfg_file16,weights_file); break;
+				case 17: delete detectors[1]; detectors[1] = new Detector(cfg_file17,weights_file); break;
 			}
 			
 			pthread_mutex_unlock(&detector1Mutex);
@@ -181,38 +167,24 @@ void *updateDetectionModel(void *) {
 			
 			//case currModel 
 			switch(new_model){
-				case 0: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file0,weights_file);
-					break;
-				case 1: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file1,weights_file);
-					break;
-				case 2: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file2,weights_file);
-					break;
-				case 3: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file3,weights_file);
-					break;
-				case 4: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file4,weights_file);
-					break;
-				case 5: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file5,weights_file);
-					break;
-				case 6: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file6,weights_file);
-					break;
-				case 7: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file7,weights_file);
-					break;
+				case 0: delete detectors[0]; detectors[0] = new Detector(cfg_file0,weights_file); break;
+				case 1: delete detectors[0]; detectors[0] = new Detector(cfg_file1,weights_file); break;
+				case 2: delete detectors[0]; detectors[0] = new Detector(cfg_file2,weights_file); break;
+				case 3: delete detectors[0]; detectors[0] = new Detector(cfg_file3,weights_file); break;
+				case 4: delete detectors[0]; detectors[0] = new Detector(cfg_file4,weights_file); break;
+				case 5: delete detectors[0]; detectors[0] = new Detector(cfg_file5,weights_file); break;
+				case 6: delete detectors[0]; detectors[0] = new Detector(cfg_file6,weights_file); break;
+				case 7: delete detectors[0]; detectors[0] = new Detector(cfg_file7,weights_file); break;
+				case 8: delete detectors[0]; detectors[0] = new Detector(cfg_file8,weights_file); break;
+				case 9: delete detectors[0]; detectors[0] = new Detector(cfg_file9,weights_file); break;
+				case 10: delete detectors[0]; detectors[0] = new Detector(cfg_file10,weights_file); break;
+				case 11: delete detectors[0]; detectors[0] = new Detector(cfg_file11,weights_file); break;
+				case 12: delete detectors[0]; detectors[0] = new Detector(cfg_file12,weights_file); break;
+				case 13: delete detectors[0]; detectors[0] = new Detector(cfg_file13,weights_file); break;
+				case 14: delete detectors[0]; detectors[0] = new Detector(cfg_file14,weights_file); break;
+				case 15: delete detectors[0]; detectors[0] = new Detector(cfg_file15,weights_file); break;
+				case 16: delete detectors[0]; detectors[0] = new Detector(cfg_file16,weights_file); break;
+				case 17: delete detectors[0]; detectors[0] = new Detector(cfg_file17,weights_file); break;
 			}
 			
 			pthread_mutex_unlock(&detector0Mutex);
@@ -472,42 +444,25 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	string names_file = "darknet/data/coco.names";
-	string cfg_file0 = "darknet/cfg/yolov3_64_96.cfg";
-    string cfg_file1 = "darknet/cfg/yolov3_128_192.cfg";
-    string cfg_file2 = "darknet/cfg/yolov3_192_288.cfg";
-    string cfg_file3 = "darknet/cfg/yolov3_256_384.cfg";
-    string cfg_file4 = "darknet/cfg/yolov3_320_480.cfg";
-    string cfg_file5 = "darknet/cfg/yolov3_384_576.cfg";
-    string cfg_file6 = "darknet/cfg/yolov3_448_672.cfg";
-    string cfg_file7 = "darknet/cfg/yolov3_512_768.cfg";
-    string weights_file = "darknet/yolov3.weights";
-	
 	switch(STARTING_MODEL){
-		case 0: 
-			detectors[0] = new Detector(cfg_file0,weights_file);
-			break;
-		case 1: 
-			detectors[0] = new Detector(cfg_file1,weights_file);
-			break;
-		case 2: 
-			detectors[0] = new Detector(cfg_file2,weights_file);
-			break;
-		case 3: 
-			detectors[0] = new Detector(cfg_file3,weights_file);
-			break;
-		case 4: 
-			detectors[0] = new Detector(cfg_file4,weights_file);
-			break;
-		case 5: 
-			detectors[0] = new Detector(cfg_file5,weights_file);
-			break;
-		case 6: 
-			detectors[0] = new Detector(cfg_file6,weights_file);
-			break;
-		case 7: 
-			detectors[0] = new Detector(cfg_file7,weights_file);
-			break;
+		case 0: detectors[0] = new Detector(cfg_file0,weights_file); break;
+		case 1: detectors[0] = new Detector(cfg_file1,weights_file); break;
+		case 2: detectors[0] = new Detector(cfg_file2,weights_file); break;
+		case 3: detectors[0] = new Detector(cfg_file3,weights_file); break;
+		case 4: detectors[0] = new Detector(cfg_file4,weights_file); break;
+		case 5: detectors[0] = new Detector(cfg_file5,weights_file); break;
+		case 6: detectors[0] = new Detector(cfg_file6,weights_file); break;
+		case 7: detectors[0] = new Detector(cfg_file7,weights_file); break;
+		case 8: detectors[0] = new Detector(cfg_file8,weights_file); break;
+		case 9: detectors[0] = new Detector(cfg_file9,weights_file); break;
+		case 10: detectors[0] = new Detector(cfg_file10,weights_file); break;
+		case 11: detectors[0] = new Detector(cfg_file11,weights_file); break;
+		case 12: detectors[0] = new Detector(cfg_file12,weights_file); break;
+		case 13: detectors[0] = new Detector(cfg_file13,weights_file); break;
+		case 14: detectors[0] = new Detector(cfg_file14,weights_file); break;
+		case 15: detectors[0] = new Detector(cfg_file15,weights_file); break;
+		case 16: detectors[0] = new Detector(cfg_file16,weights_file); break;
+		case 17: detectors[0] = new Detector(cfg_file17,weights_file); break;
 	}
 	
 	obj_names = objects_names_from_file(names_file);
