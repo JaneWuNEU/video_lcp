@@ -102,7 +102,7 @@ void *updateDetectionModel(void *) {
 			perror("ERROR reading from pipe");
 			exit(1);
 		}
-		printf("U | received %d\n",new_model);
+		//printf("U | received %d\n",new_model);
 		
 		
 		auto start = std::chrono::system_clock::now();
@@ -252,7 +252,15 @@ void *getSendResult(void *fd) {
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
-		} 
+		}
+
+		//send detection time 
+		err = write(sockfd, &spent, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		}
 		
 		//printf("%d : write correct model : %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model);
 		//send correct model value 
@@ -311,7 +319,7 @@ void *getSendResult(void *fd) {
 				exit(1);
 			}*/
 		}
-		printf("S | id %d | correct model %d | used model %d | detection time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), n);
+		//printf("S | id %d | correct model %d | used model %d | detection time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), n);
 		//printf("%d : written all objects\n", local_frame_obj.frame_id);
 	}
 }
@@ -357,7 +365,7 @@ void *recvFrame(void *fd) {
 		if(local_frame_obj.correct_model != local_curr_model){
 			//update model
 			//printf("R: writing to update model to %d\n",local_frame_obj.correct_model);  
-			printf("U | frame %d | writing %d | local %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
+			//printf("U | frame %d | writing %d | local %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
 			err = write(modelPipe[1], &local_frame_obj.correct_model, sizeof(unsigned int));
 			if (err < 0){
 				perror("ERROR reading from pipe");
@@ -412,7 +420,7 @@ void *recvFrame(void *fd) {
 			pthread_mutex_unlock(&bufferMutex);
 		} 
 		
-		printf("R | id %d | correct model %d | local model %d | vec size %zu | buff size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model, n, frame_buffer.size());
+		//printf("R | id %d | correct model %d | local model %d | vec size %zu | buff size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model, n, frame_buffer.size());
 		
 		size_t buffer_size = frame_buffer.size();
 		err = write(sockfd, &buffer_size, sizeof(size_t));
