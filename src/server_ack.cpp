@@ -30,6 +30,7 @@ using namespace std;
 
 Detector* detectors[2];
 bool useDetector0;
+int detector;
 
 vector<frame_obj> frame_buffer;
 vector<string> obj_names;
@@ -94,6 +95,7 @@ void *updateDetectionModel(void *) {
 	unsigned int new_model;
 	//local bool used since this is the only thread that modifies the global version, which allows for reading without lock
 	bool localUseDetector0 = true;
+	int local_detector = 0;
 	
 	while (true) {
 		//read from sock to receive message from client
@@ -104,11 +106,47 @@ void *updateDetectionModel(void *) {
 		}
 		//printf("U | received %d\n",new_model);
 		
-		
 		auto start = std::chrono::system_clock::now();
 		
+		local_detector = (local_detector+1)%2;
+		
+		switch(new_model){
+			case 0: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file0,weights_file); break;
+			case 1: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file1,weights_file); break;
+			case 2: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file2,weights_file); break;
+			case 3: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file3,weights_file); break;
+			case 4: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file4,weights_file); break;
+			case 5: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file5,weights_file); break;
+			case 6: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file6,weights_file); break;
+			case 7: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file7,weights_file); break;
+			case 8: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file8,weights_file); break;
+			case 9: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file9,weights_file); break;
+			case 10: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file10,weights_file); break;
+			case 11: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file11,weights_file); break;
+			case 12: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file12,weights_file); break;
+			case 13: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file13,weights_file); break;
+			case 14: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file14,weights_file); break;
+			case 15: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file15,weights_file); break;
+			case 16: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file16,weights_file); break;
+			case 17: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file17,weights_file); break;
+		}
+					
+		localUseDetector0 = false;
+ 
+		pthread_mutex_lock(&detectorMutex);
+		useDetector0 = false;
+		detector = local_detector;
+		curr_model = new_model;
+		
+		pthread_mutex_unlock(&detectorMutex);
+		
+		auto end = std::chrono::system_clock::now();
+		std::chrono::duration<double> spent = end - start;
+
+		printf("U | detector %d | update time %f | new model %d \n", local_detector, spent.count(), curr_model);
+
 		//if detector0 is being used (by detection thread), update detector 1, else update detector 0
-		if(localUseDetector0){
+/*		if(localUseDetector0){
 			//update detector 1
 			//lock is required to prevent update of detector model while detection thread is still using the detector
 			pthread_mutex_lock(&detector1Mutex);
@@ -177,6 +215,7 @@ void *updateDetectionModel(void *) {
 			pthread_mutex_unlock(&detector0Mutex);
 			
 			localUseDetector0 = true; 
+			
 			pthread_mutex_lock(&detectorMutex);
 			useDetector0 = true;
 			curr_model = new_model;
@@ -186,7 +225,7 @@ void *updateDetectionModel(void *) {
 
 			printf("U | detector 0 | update time %f | new model %d \n", spent.count(), curr_model);
 			pthread_mutex_unlock(&detectorMutex);
-		}
+		} */
 	}	
 }
 
@@ -199,6 +238,7 @@ void *getSendResult(void *fd) {
 	vector<bbox_t> local_result_vec;
 	result_obj curr_result_obj;
 	bool localUseDetector0;
+	int local_detector;
 	
 	while (true) {
 		pthread_mutex_lock(&bufferMutex);
@@ -215,13 +255,16 @@ void *getSendResult(void *fd) {
 		pthread_mutex_lock(&detectorMutex);
 		localUseDetector0 = useDetector0;
 		local_frame_obj.used_model = curr_model;
+		local_detector = detector;
 		pthread_mutex_unlock(&detectorMutex);
 		
 		
 		auto start = std::chrono::system_clock::now();
 		
+		local_result_vec = detectors[local_detector]->detect(local_frame_obj.frame);
+
 		//perform object detection on the copied frame using detector 0 or 1
-		if(localUseDetector0){
+		/*if(localUseDetector0){
 			pthread_mutex_lock(&detector0Mutex);
 			local_result_vec = detectors[0]->detect(local_frame_obj.frame);
 			pthread_mutex_unlock(&detector0Mutex);
@@ -229,7 +272,7 @@ void *getSendResult(void *fd) {
 			pthread_mutex_lock(&detector1Mutex);
 			local_result_vec = detectors[1]->detect(local_frame_obj.frame);
 			pthread_mutex_unlock(&detector1Mutex);
-		}
+		}*/
 
 		//temporary timing to see how old the frame is after object detection
 		auto end = std::chrono::system_clock::now();
@@ -463,6 +506,7 @@ int main(int argc, char *argv[]) {
 	obj_names = objects_names_from_file(names_file);
 	
 	useDetector0 = true;
+	detector = 0;
 	curr_model = STARTING_MODEL;
 	
 	int err;
