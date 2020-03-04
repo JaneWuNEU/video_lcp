@@ -52,6 +52,13 @@ const std::string cfg_file16 = "darknet/cfg/yolov3_576.cfg";
 const std::string cfg_file17 = "darknet/cfg/yolov3_608.cfg";
 const std::string cfg_file18 = "darknet/cfg/yolov3_640.cfg";
 
+const std::string cfg_files[MAX_MODEL+1] = { "darknet/cfg/yolov3_64.cfg", 
+"darknet/cfg/yolov3_96.cfg", "darknet/cfg/yolov3_128.cfg", "darknet/cfg/yolov3_160.cfg", 
+"darknet/cfg/yolov3_192.cfg", "darknet/cfg/yolov3_224.cfg", "darknet/cfg/yolov3_256.cfg", 
+"darknet/cfg/yolov3_288.cfg", "darknet/cfg/yolov3_320.cfg", "darknet/cfg/yolov3_352.cfg", 
+"darknet/cfg/yolov3_384.cfg", "darknet/cfg/yolov3_416.cfg", "darknet/cfg/yolov3_448.cfg", 
+"darknet/cfg/yolov3_480.cfg", "darknet/cfg/yolov3_512.cfg", "darknet/cfg/yolov3_544.cfg", 
+"darknet/cfg/yolov3_576.cfg", "darknet/cfg/yolov3_608.cfg", "darknet/cfg/yolov3_640.cfg" };
 
 /*string cfg_file0 = "darknet/cfg/yolov3_64_96.cfg";
 string cfg_file1 = "darknet/cfg/yolov3_128_192.cfg";
