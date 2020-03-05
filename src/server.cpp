@@ -30,6 +30,7 @@ using namespace std;
 
 Detector* detectors[2];
 bool useDetector0;
+int detector;
 
 vector<frame_obj> frame_buffer;
 vector<string> obj_names;
@@ -94,20 +95,8 @@ void *updateDetectionModel(void *) {
 	unsigned int new_model;
 	//local bool used since this is the only thread that modifies the global version, which allows for reading without lock
 	bool localUseDetector0 = true;
+	int local_detector = 0;
 	
-	//string weights_file0 = "darknet/yolov3-tiny.weights";
-	//string cfg_file0 = "darknet/cfg/yolov3-tiny.cfg";
-    
-	string weights_file = "darknet/yolov3.weights";
-	string cfg_file0 = "darknet/cfg/yolov3_64_96.cfg";
-    string cfg_file1 = "darknet/cfg/yolov3_128_192.cfg";
-    string cfg_file2 = "darknet/cfg/yolov3_192_288.cfg";
-    string cfg_file3 = "darknet/cfg/yolov3_256_384.cfg";
-    string cfg_file4 = "darknet/cfg/yolov3_320_480.cfg";
-    string cfg_file5 = "darknet/cfg/yolov3_384_576.cfg";
-    string cfg_file6 = "darknet/cfg/yolov3_448_672.cfg";
-    string cfg_file7 = "darknet/cfg/yolov3_512_768.cfg";
-    
 	while (true) {
 		//read from sock to receive message from client
 		err = read(modelPipe[0], &new_model, sizeof(unsigned int));
@@ -115,51 +104,73 @@ void *updateDetectionModel(void *) {
 			perror("ERROR reading from pipe");
 			exit(1);
 		}
-		printf("U | received %d\n",new_model);
-		
+		//printf("U | received %d\n",new_model);
 		
 		auto start = std::chrono::system_clock::now();
 		
+		local_detector = (local_detector+1)%2;
+		
+		switch(new_model){
+			case 0: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file0,weights_file); break;
+			case 1: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file1,weights_file); break;
+			case 2: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file2,weights_file); break;
+			case 3: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file3,weights_file); break;
+			case 4: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file4,weights_file); break;
+			case 5: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file5,weights_file); break;
+			case 6: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file6,weights_file); break;
+			case 7: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file7,weights_file); break;
+			case 8: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file8,weights_file); break;
+			case 9: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file9,weights_file); break;
+			case 10: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file10,weights_file); break;
+			case 11: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file11,weights_file); break;
+			case 12: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file12,weights_file); break;
+			case 13: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file13,weights_file); break;
+			case 14: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file14,weights_file); break;
+			case 15: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file15,weights_file); break;
+			case 16: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file16,weights_file); break;
+			case 17: delete detectors[local_detector]; detectors[local_detector] = new Detector(cfg_file17,weights_file); break;
+		}
+					
+		localUseDetector0 = false;
+ 
+		pthread_mutex_lock(&detectorMutex);
+		useDetector0 = false;
+		detector = local_detector;
+		curr_model = new_model;
+		
+		pthread_mutex_unlock(&detectorMutex);
+		
+		auto end = std::chrono::system_clock::now();
+		std::chrono::duration<double> spent = end - start;
+
+		printf("U | detector %d | update time %f | new model %d \n", local_detector, spent.count(), curr_model);
+
 		//if detector0 is being used (by detection thread), update detector 1, else update detector 0
-		if(localUseDetector0){
+/*		if(localUseDetector0){
 			//update detector 1
 			//lock is required to prevent update of detector model while detection thread is still using the detector
 			pthread_mutex_lock(&detector1Mutex);
 		
 			//case currModel 
 			switch(new_model){
-				case 0: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file0,weights_file);
-					break;
-				case 1: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file1,weights_file);
-					break;
-				case 2: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file2,weights_file);
-					break;
-				case 3: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file3,weights_file);
-					break;
-				case 4: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file4,weights_file);
-					break;
-				case 5: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file5,weights_file);
-					break;
-				case 6: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file6,weights_file);
-					break;
-				case 7: 
-					delete detectors[1];
-					detectors[1] = new Detector(cfg_file7,weights_file);
-					break;
+				case 0: delete detectors[1]; detectors[1] = new Detector(cfg_file0,weights_file); break;
+				case 1: delete detectors[1]; detectors[1] = new Detector(cfg_file1,weights_file); break;
+				case 2: delete detectors[1]; detectors[1] = new Detector(cfg_file2,weights_file); break;
+				case 3: delete detectors[1]; detectors[1] = new Detector(cfg_file3,weights_file); break;
+				case 4: delete detectors[1]; detectors[1] = new Detector(cfg_file4,weights_file); break;
+				case 5: delete detectors[1]; detectors[1] = new Detector(cfg_file5,weights_file); break;
+				case 6: delete detectors[1]; detectors[1] = new Detector(cfg_file6,weights_file); break;
+				case 7: delete detectors[1]; detectors[1] = new Detector(cfg_file7,weights_file); break;
+				case 8: delete detectors[1]; detectors[1] = new Detector(cfg_file8,weights_file); break;
+				case 9: delete detectors[1]; detectors[1] = new Detector(cfg_file9,weights_file); break;
+				case 10: delete detectors[1]; detectors[1] = new Detector(cfg_file10,weights_file); break;
+				case 11: delete detectors[1]; detectors[1] = new Detector(cfg_file11,weights_file); break;
+				case 12: delete detectors[1]; detectors[1] = new Detector(cfg_file12,weights_file); break;
+				case 13: delete detectors[1]; detectors[1] = new Detector(cfg_file13,weights_file); break;
+				case 14: delete detectors[1]; detectors[1] = new Detector(cfg_file14,weights_file); break;
+				case 15: delete detectors[1]; detectors[1] = new Detector(cfg_file15,weights_file); break;
+				case 16: delete detectors[1]; detectors[1] = new Detector(cfg_file16,weights_file); break;
+				case 17: delete detectors[1]; detectors[1] = new Detector(cfg_file17,weights_file); break;
 			}
 			
 			pthread_mutex_unlock(&detector1Mutex);
@@ -181,43 +192,30 @@ void *updateDetectionModel(void *) {
 			
 			//case currModel 
 			switch(new_model){
-				case 0: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file0,weights_file);
-					break;
-				case 1: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file1,weights_file);
-					break;
-				case 2: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file2,weights_file);
-					break;
-				case 3: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file3,weights_file);
-					break;
-				case 4: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file4,weights_file);
-					break;
-				case 5: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file5,weights_file);
-					break;
-				case 6: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file6,weights_file);
-					break;
-				case 7: 
-					delete detectors[0];
-					detectors[0] = new Detector(cfg_file7,weights_file);
-					break;
+				case 0: delete detectors[0]; detectors[0] = new Detector(cfg_file0,weights_file); break;
+				case 1: delete detectors[0]; detectors[0] = new Detector(cfg_file1,weights_file); break;
+				case 2: delete detectors[0]; detectors[0] = new Detector(cfg_file2,weights_file); break;
+				case 3: delete detectors[0]; detectors[0] = new Detector(cfg_file3,weights_file); break;
+				case 4: delete detectors[0]; detectors[0] = new Detector(cfg_file4,weights_file); break;
+				case 5: delete detectors[0]; detectors[0] = new Detector(cfg_file5,weights_file); break;
+				case 6: delete detectors[0]; detectors[0] = new Detector(cfg_file6,weights_file); break;
+				case 7: delete detectors[0]; detectors[0] = new Detector(cfg_file7,weights_file); break;
+				case 8: delete detectors[0]; detectors[0] = new Detector(cfg_file8,weights_file); break;
+				case 9: delete detectors[0]; detectors[0] = new Detector(cfg_file9,weights_file); break;
+				case 10: delete detectors[0]; detectors[0] = new Detector(cfg_file10,weights_file); break;
+				case 11: delete detectors[0]; detectors[0] = new Detector(cfg_file11,weights_file); break;
+				case 12: delete detectors[0]; detectors[0] = new Detector(cfg_file12,weights_file); break;
+				case 13: delete detectors[0]; detectors[0] = new Detector(cfg_file13,weights_file); break;
+				case 14: delete detectors[0]; detectors[0] = new Detector(cfg_file14,weights_file); break;
+				case 15: delete detectors[0]; detectors[0] = new Detector(cfg_file15,weights_file); break;
+				case 16: delete detectors[0]; detectors[0] = new Detector(cfg_file16,weights_file); break;
+				case 17: delete detectors[0]; detectors[0] = new Detector(cfg_file17,weights_file); break;
 			}
 			
 			pthread_mutex_unlock(&detector0Mutex);
 			
 			localUseDetector0 = true; 
+			
 			pthread_mutex_lock(&detectorMutex);
 			useDetector0 = true;
 			curr_model = new_model;
@@ -227,7 +225,7 @@ void *updateDetectionModel(void *) {
 
 			printf("U | detector 0 | update time %f | new model %d \n", spent.count(), curr_model);
 			pthread_mutex_unlock(&detectorMutex);
-		}
+		} */
 	}	
 }
 
@@ -240,6 +238,7 @@ void *getSendResult(void *fd) {
 	vector<bbox_t> local_result_vec;
 	result_obj curr_result_obj;
 	bool localUseDetector0;
+	int local_detector;
 	
 	while (true) {
 		pthread_mutex_lock(&bufferMutex);
@@ -256,13 +255,16 @@ void *getSendResult(void *fd) {
 		pthread_mutex_lock(&detectorMutex);
 		localUseDetector0 = useDetector0;
 		local_frame_obj.used_model = curr_model;
+		local_detector = detector;
 		pthread_mutex_unlock(&detectorMutex);
 		
 		
 		auto start = std::chrono::system_clock::now();
 		
+		local_result_vec = detectors[local_detector]->detect(local_frame_obj.frame);
+
 		//perform object detection on the copied frame using detector 0 or 1
-		if(localUseDetector0){
+		/*if(localUseDetector0){
 			pthread_mutex_lock(&detector0Mutex);
 			local_result_vec = detectors[0]->detect(local_frame_obj.frame);
 			pthread_mutex_unlock(&detector0Mutex);
@@ -270,7 +272,7 @@ void *getSendResult(void *fd) {
 			pthread_mutex_lock(&detector1Mutex);
 			local_result_vec = detectors[1]->detect(local_frame_obj.frame);
 			pthread_mutex_unlock(&detector1Mutex);
-		}
+		}*/
 
 		//temporary timing to see how old the frame is after object detection
 		auto end = std::chrono::system_clock::now();
@@ -293,7 +295,15 @@ void *getSendResult(void *fd) {
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
-		} 
+		}
+
+		//send detection time 
+		err = write(sockfd, &spent, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		}
 		
 		//printf("%d : write correct model : %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model);
 		//send correct model value 
@@ -352,7 +362,7 @@ void *getSendResult(void *fd) {
 				exit(1);
 			}*/
 		}
-		printf("S | id %d | correct model %d | used model %d | detection time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), n);
+		//printf("S | id %d | correct model %d | used model %d | detection time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), n);
 		//printf("%d : written all objects\n", local_frame_obj.frame_id);
 	}
 }
@@ -398,7 +408,7 @@ void *recvFrame(void *fd) {
 		if(local_frame_obj.correct_model != local_curr_model){
 			//update model
 			//printf("R: writing to update model to %d\n",local_frame_obj.correct_model);  
-			printf("U | frame %d | writing %d | local %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
+			//printf("U | frame %d | writing %d | local %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
 			err = write(modelPipe[1], &local_frame_obj.correct_model, sizeof(unsigned int));
 			if (err < 0){
 				perror("ERROR reading from pipe");
@@ -453,8 +463,16 @@ void *recvFrame(void *fd) {
 			pthread_mutex_unlock(&bufferMutex);
 		} 
 		
-		printf("R | id %d | correct model %d | local model %d | vec size %zu | buff size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model, n, frame_buffer.size());
+		//printf("R | id %d | correct model %d | local model %d | vec size %zu | buff size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model, n, frame_buffer.size());
 		
+		size_t buffer_size = frame_buffer.size();
+		err = write(sockfd, &buffer_size, sizeof(size_t));
+		if (err < 0){
+			perror("ERROR writing ack to socket");
+			close(sockfd);
+			exit(1);
+		} 
+		//printf("R | ack for id %d\n", local_frame_obj.frame_id);
 	}
 }
 
@@ -464,47 +482,31 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	string names_file = "darknet/data/coco.names";
-	string cfg_file0 = "darknet/cfg/yolov3_64_96.cfg";
-    string cfg_file1 = "darknet/cfg/yolov3_128_192.cfg";
-    string cfg_file2 = "darknet/cfg/yolov3_192_288.cfg";
-    string cfg_file3 = "darknet/cfg/yolov3_256_384.cfg";
-    string cfg_file4 = "darknet/cfg/yolov3_320_480.cfg";
-    string cfg_file5 = "darknet/cfg/yolov3_384_576.cfg";
-    string cfg_file6 = "darknet/cfg/yolov3_448_672.cfg";
-    string cfg_file7 = "darknet/cfg/yolov3_512_768.cfg";
-    string weights_file = "darknet/yolov3.weights";
-	
 	switch(STARTING_MODEL){
-		case 0: 
-			detectors[0] = new Detector(cfg_file0,weights_file);
-			break;
-		case 1: 
-			detectors[0] = new Detector(cfg_file1,weights_file);
-			break;
-		case 2: 
-			detectors[0] = new Detector(cfg_file2,weights_file);
-			break;
-		case 3: 
-			detectors[0] = new Detector(cfg_file3,weights_file);
-			break;
-		case 4: 
-			detectors[0] = new Detector(cfg_file4,weights_file);
-			break;
-		case 5: 
-			detectors[0] = new Detector(cfg_file5,weights_file);
-			break;
-		case 6: 
-			detectors[0] = new Detector(cfg_file6,weights_file);
-			break;
-		case 7: 
-			detectors[0] = new Detector(cfg_file7,weights_file);
-			break;
+		case 0: detectors[0] = new Detector(cfg_file0,weights_file); break;
+		case 1: detectors[0] = new Detector(cfg_file1,weights_file); break;
+		case 2: detectors[0] = new Detector(cfg_file2,weights_file); break;
+		case 3: detectors[0] = new Detector(cfg_file3,weights_file); break;
+		case 4: detectors[0] = new Detector(cfg_file4,weights_file); break;
+		case 5: detectors[0] = new Detector(cfg_file5,weights_file); break;
+		case 6: detectors[0] = new Detector(cfg_file6,weights_file); break;
+		case 7: detectors[0] = new Detector(cfg_file7,weights_file); break;
+		case 8: detectors[0] = new Detector(cfg_file8,weights_file); break;
+		case 9: detectors[0] = new Detector(cfg_file9,weights_file); break;
+		case 10: detectors[0] = new Detector(cfg_file10,weights_file); break;
+		case 11: detectors[0] = new Detector(cfg_file11,weights_file); break;
+		case 12: detectors[0] = new Detector(cfg_file12,weights_file); break;
+		case 13: detectors[0] = new Detector(cfg_file13,weights_file); break;
+		case 14: detectors[0] = new Detector(cfg_file14,weights_file); break;
+		case 15: detectors[0] = new Detector(cfg_file15,weights_file); break;
+		case 16: detectors[0] = new Detector(cfg_file16,weights_file); break;
+		case 17: detectors[0] = new Detector(cfg_file17,weights_file); break;
 	}
 	
 	obj_names = objects_names_from_file(names_file);
 	
 	useDetector0 = true;
+	detector = 0;
 	curr_model = STARTING_MODEL;
 	
 	int err;
@@ -513,7 +515,7 @@ int main(int argc, char *argv[]) {
 		perror("ERROR creating pipe");
 		exit(1);
 	}
-	
+
 	pthread_mutex_init(&bufferMutex, NULL);
 	pthread_mutex_init(&detectorMutex, NULL);
 	pthread_mutex_init(&detector0Mutex, NULL);

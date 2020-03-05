@@ -12,6 +12,7 @@
 #include <fstream>
 #include <pthread.h>
 #include <chrono>
+#include <numeric>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
@@ -41,6 +42,7 @@ bool shaping = true;
 
 int controlPipe[2]; //pipe for communicating if frame results are received on time
 bool detector_update;
+
 
 // make a connection to the server and open two sockets one for sending data, one for receiving data
 void connect_to_server(int &sockfd1, int &sockfd2, char *argv[]) {
@@ -127,7 +129,6 @@ void drawBoxes(frame_obj local_frame_obj, vector<result_obj> result_vec, unsigne
 	// add latency of the frame on which detection is performed and the difference between that frame and the current frame  
 	auto end = std::chrono::system_clock::now();
 	std::chrono::duration<double> spent = end - local_frame_obj.start;
-	//printf("result frame %d is now %f sec old\n",local_frame_obj.frame_id, spent.count());
 	string label = format("Curr: %d | Inf: %d | Time: %f", curr_frame_id, local_frame_obj.frame_id, spent.count());
 	int baseLine;
     Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1 , &baseLine);
@@ -190,7 +191,15 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-
+		
+		//receive detection time of frame on which server performed detection
+		err = read(sockfd, &local_frame_obj.detection_time, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR reading socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
 		//receive correct model value
 		err = read(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
@@ -198,7 +207,7 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		
+	
 		//receive used model value
 		err = read(sockfd, &local_frame_obj.used_model, sizeof(unsigned int));
 		if (err < 0){
@@ -241,6 +250,7 @@ void *recvrend(void *fd) {
  			result_vec.push_back(obj); 
 		}
 		
+		//printf("read all objects done \n");
 		//copy the frame from the global frame object so the last captured frame can be used for rendering
 		pthread_mutex_lock(&frameMutex);
 		local_frame_obj.frame = global_frame_obj.frame.clone();
@@ -252,8 +262,10 @@ void *recvrend(void *fd) {
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
 		double time_spent = spent.count();
 		
-		printf("R | id %d | correct model %d | used model %d | time %f | objects %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), n);
+		// quick console output 
+		printf("R | id %d | correct model %d | used model %d | latency %f | det time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count(), n);
 		
+		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
 		if (err < 0){
 			perror("ERROR reading from pipe");
@@ -283,6 +295,7 @@ void *capsend(void *fd) {
 	vector<uchar> vec;
 	unsigned int frame_counter = 0;
 	frame_obj local_frame_obj;
+	size_t buffer_size;
 	
 	pid_t pid = fork();
 	if(pid < 0){
@@ -291,8 +304,8 @@ void *capsend(void *fd) {
 		exit(1);
 	} else if (pid == 0) {
 		printf("child spawns\n");
-		if(shaping){
-			execl("/bin/bash", "bash", "../simulation/shape.sh", shaping_input);
+		if(shaping) {
+			execl("/bin/bash", "bash", "../simulation/shape.sh", shaping_input.c_str());
 		}
 		printf("child done\n");
 		exit(0);
@@ -349,7 +362,7 @@ void *capsend(void *fd) {
 			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_AREA);
 			imencode(".jpg", local_frame_obj.frame, vec);
 			size_t n = vec.size();
-
+			
 			err = write(sockfd, &n, sizeof(size_t));
 			if (err < 0){
 				perror("ERROR writing to socket");
@@ -364,6 +377,18 @@ void *capsend(void *fd) {
 				exit(1);
 			} 
 			//printf("S | id %d | correct model %d | vec size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, n);
+			
+			//wait for ack of server that frame is received
+			err = read(sockfd, &buffer_size, sizeof(size_t));
+			if (err < 0){
+				perror("ERROR reading ack from socket");
+				close(sockfd);
+				exit(1);
+			} 
+			auto end = std::chrono::system_clock::now();
+			std::chrono::duration<double> spent = end - local_frame_obj.start;
+			double time_spent = spent.count();
+			//printf("S | ack for id %d | it is %f old\n", local_frame_obj.frame_id, time_spent);
 		}
 	}
 }
@@ -375,7 +400,7 @@ void *control(void *) {
 	unsigned int used_model;
 	unsigned int local_curr_model = STARTING_MODEL;
 	
-	vector<bool> control_buffer;
+	vector<double> control_buffer;
 	int pos = 0;
 	int control_window = CONTROL_WINDOW;
 	
@@ -394,44 +419,47 @@ void *control(void *) {
 			exit(1);
 		}
 		
-		if (used_model != local_curr_model) {
+		if (used_model != local_curr_model) { //used model is not updated, so server is still updating model
 			continue;
 		}
 		
 		bool on_time = (spent <= FRAME_DEADLINE) ? true : false;
+		double diff = ((spent - FRAME_DEADLINE)*1000);
+		diff = !on_time ? diff*diff : diff;
 		
-		if (control_buffer.size() == control_window) { //control window full
+		if (control_buffer.size() == control_window) { //control window full, start checking
 			control_buffer[pos] = on_time;
 			pos = (pos + 1) % control_window;
-				
-			int total_on_time = count(control_buffer.begin(), control_buffer.end(), true);
-			if (total_on_time >= HIGH_ON_TIME) { //96% of frames on time
-				if (local_curr_model < MAX_MODEL) {
-					local_curr_model++;
-					control_buffer.clear();
-					pos = 0;
-					//printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
-					
-					pthread_mutex_lock(&modelMutex);
-					curr_model = local_curr_model; 
-					pthread_mutex_unlock(&modelMutex);
-				}
-			} else if (total_on_time <= LOW_ON_TIME) { //50% of frames on time
-				if(local_curr_model > MIN_MODEL) {
-					local_curr_model--;
-					control_buffer.clear();
-					pos = 0;
-					//printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
-					
-					pthread_mutex_lock(&modelMutex);
-					curr_model = local_curr_model; 
-					pthread_mutex_unlock(&modelMutex);
-				}
-			}
-		} else {
-			control_buffer.push_back(on_time);
+		} else {	//control window not full yet, wait till its full
+			control_buffer.push_back(diff);
 		}
-	}
+
+		//int total_on_time = count(control_buffer.begin(), control_buffer.end(), true);
+		double sum = std::accumulate(control_buffer.begin(), control_buffer.end(), 0.0);
+		if (sum <= HIGH_SUM * CONTROL_WINDOW) { 
+			if (local_curr_model < MAX_MODEL) {
+				local_curr_model++;
+				control_buffer.clear();
+				pos = 0;
+				printf("U | sum %f | new model %d\n", sum, local_curr_model);
+				
+				pthread_mutex_lock(&modelMutex);
+				curr_model = local_curr_model; 
+				pthread_mutex_unlock(&modelMutex);
+			}
+		} else if (sum >= LOW_SUM * CONTROL_WINDOW) { 
+			if(local_curr_model > MIN_MODEL) {
+				local_curr_model--;
+				control_buffer.clear();
+				pos = 0;
+				printf("U | sum %f | new model %d\n", sum, local_curr_model);
+				
+				pthread_mutex_lock(&modelMutex);
+				curr_model = local_curr_model; 
+				pthread_mutex_unlock(&modelMutex);
+			}
+		}
+	} 
 }
 
 int main(int argc, char *argv[]) {
@@ -475,7 +503,7 @@ int main(int argc, char *argv[]) {
 	
 	capture_frame_height = capture.get(CAP_PROP_FRAME_HEIGHT);
 	capture_frame_width = capture.get(CAP_PROP_FRAME_WIDTH);
-	printf("height: %d, width: %d\n", capture_frame_height, capture_frame_width);
+	printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
 	
 	curr_model = STARTING_MODEL;
 	string names_file = "darknet/data/coco.names";

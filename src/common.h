@@ -8,6 +8,9 @@
 #define CONTROL_WINDOW 50
 #define LOW_ON_TIME 35
 #define HIGH_ON_TIME 50
+#define LOW_SUM 5
+#define HIGH_SUM -10
+
 
 // object that is returned by the server in which information on a detected object is stored
 struct result_obj {					
