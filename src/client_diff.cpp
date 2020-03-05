@@ -425,7 +425,7 @@ void *control(void *) {
 		
 		bool on_time = (spent <= FRAME_DEADLINE) ? true : false;
 		double diff = ((spent - FRAME_DEADLINE)*1000);
-		diff = !on_time ? diff*diff : diff;
+		diff = !on_time ? diff*(diff*MISS_EXPONENT) : diff;
 		
 		if (control_buffer.size() == control_window) { //control window full, start checking
 			control_buffer[pos] = on_time;

@@ -10,6 +10,7 @@
 #define HIGH_ON_TIME 50
 #define LOW_SUM 5
 #define HIGH_SUM -10
+#define MISS_EXPONENT 1
 
 
 // object that is returned by the server in which information on a detected object is stored
