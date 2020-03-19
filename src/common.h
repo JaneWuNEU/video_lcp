@@ -1,7 +1,7 @@
 #define BUFF_SIZE 2048
 #define MAX_FRAME_BUFFER_SIZE 30
 #define FRAME_DEADLINE 0.04
-#define MAX_MODEL 18  //15 for 16model server
+#define MAX_MODEL 15  //15 for 16model server, 18 for others
 #define MIN_MODEL 0
 #define STARTING_MODEL 0
 
@@ -57,7 +57,7 @@ const std::string cfg_file16 = "darknet/cfg/yolov3_576.cfg";
 const std::string cfg_file17 = "darknet/cfg/yolov3_608.cfg";
 const std::string cfg_file18 = "darknet/cfg/yolov3_640.cfg";
 
-const std::string cfg_files[MAX_MODEL+1] = { "darknet/cfg/yolov3_64.cfg", 
+const std::string cfg_files[19] = { "darknet/cfg/yolov3_64.cfg", 
 "darknet/cfg/yolov3_96.cfg", "darknet/cfg/yolov3_128.cfg", "darknet/cfg/yolov3_160.cfg", 
 "darknet/cfg/yolov3_192.cfg", "darknet/cfg/yolov3_224.cfg", "darknet/cfg/yolov3_256.cfg", 
 "darknet/cfg/yolov3_288.cfg", "darknet/cfg/yolov3_320.cfg", "darknet/cfg/yolov3_352.cfg", 
