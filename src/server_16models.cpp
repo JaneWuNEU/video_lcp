@@ -34,13 +34,7 @@ vector<frame_obj> frame_buffer;
 vector<string> obj_names;
 vector<bbox_t> result_vec;
 
-unsigned int curr_model;
-int modelPipe[2]; //pipe for communicating model ids
-
 pthread_mutex_t bufferMutex;
-pthread_mutex_t detectorMutex;
-pthread_mutex_t detector0Mutex;
-pthread_mutex_t detector1Mutex;
 pthread_cond_t bufferCond;
 
 // make a connection to the client and open two sockets one for sending data, one for receiving data
@@ -88,51 +82,6 @@ vector<string> objects_names_from_file(string const filename) {
     return file_lines;
 }
 
-void *updateDetectionModel(void *) {
-	int err;
-	unsigned int new_model;
-	//local bool used since this is the only thread that modifies the global version, which allows for reading without lock
-	int local_detector = STARTING_MODEL;
-	bool detector_ready[MAX_MODEL+1] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
-	detector_ready[local_detector-1] = true;
-	detector_ready[local_detector] = true;
-	detector_ready[local_detector+1] = true;
-	
-	
-	while (true) {
-		//read from sock to receive message from client
-		err = read(modelPipe[0], &new_model, sizeof(unsigned int));
-		if (err < 0){
-			perror("ERROR reading from pipe");
-			exit(1);
-		}
-		//printf("U | received %d\n",new_model);
-		
-		if(detector_ready[new_model]) { //model should always be loaded in previous iteration already
-			pthread_mutex_lock(&detectorMutex);
-			curr_model = new_model;
-			pthread_mutex_unlock(&detectorMutex);
-		}
-
-		if(new_model > MIN_MODEL+1 && detector_ready[new_model-2]) { // delete old (non neighbour) model
-			detector_ready[new_model-2] = false;
-			delete detectors[new_model-2];
-		} 
-		if(new_model < MAX_MODEL-1 && detector_ready[new_model+2]) { // delete old (non neighbour) model 
-			detector_ready[new_model+2] = false;
-			delete detectors[new_model+2];
-		}	
-		if(new_model > MIN_MODEL && !detector_ready[new_model-1]) { // if neighbour model not ready, load it.
-			detectors[new_model-1] = new Detector(cfg_files[new_model-1],weights_file);
-			detector_ready[new_model-1] = true;
-		}
-		if(new_model < MAX_MODEL && !detector_ready[new_model+1]) { // if neighbour model not ready, load it.
-			detectors[new_model+1] = new Detector(cfg_files[new_model+1],weights_file);
-			detector_ready[new_model+1] = true;
-		}
-	}	
-}
-
 //perform object detection on a received frame and send the result vector to the client
 void *getSendResult(void *fd) {
 	int sockfd = *(int *)fd;
@@ -141,9 +90,7 @@ void *getSendResult(void *fd) {
 	frame_obj local_frame_obj;
 	vector<bbox_t> local_result_vec;
 	result_obj curr_result_obj;
-	bool localUseDetector0;
-	int local_detector;
-	
+		
 	while (true) {
 		pthread_mutex_lock(&bufferMutex);
 		//wait until there is a frame object in the buffer
@@ -155,11 +102,6 @@ void *getSendResult(void *fd) {
 		frame_buffer.erase(frame_buffer.begin());
 		pthread_mutex_unlock(&bufferMutex);
 
-		//check which detector to use
-		pthread_mutex_lock(&detectorMutex);
-		local_frame_obj.used_model = curr_model;
-		pthread_mutex_unlock(&detectorMutex);
-		
 		auto start = std::chrono::system_clock::now();
 		
 		local_result_vec = detectors[local_frame_obj.used_model]->detect(local_frame_obj.frame);
@@ -258,7 +200,6 @@ void *recvFrame(void *fd) {
 	int err;
 	size_t n;
 	frame_obj local_frame_obj;
-	unsigned int local_curr_model = STARTING_MODEL;
 	
 	while (true) {
 		vector<uchar> vec;
@@ -290,19 +231,8 @@ void *recvFrame(void *fd) {
 		} 
 		//printf("R: %d correct model %d, local model %d\n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
 		
-		if(local_frame_obj.correct_model != local_curr_model){
-			//update model
-			//printf("R: writing to update model to %d\n",local_frame_obj.correct_model);  
-			//printf("U | frame %d | writing %d | local %d \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_curr_model);
-			err = write(modelPipe[1], &local_frame_obj.correct_model, sizeof(unsigned int));
-			if (err < 0){
-				perror("ERROR reading from pipe");
-				close(sockfd);
-				exit(1);
-			} 
-			local_curr_model = local_frame_obj.correct_model;
-		}
-				
+		local_frame_obj.used_model = local_frame_obj.correct_model;
+						
 		//read the size of the vector containing the frame data 
 		err = read(sockfd,&n,sizeof(size_t));
 		if (err < 0){ 
@@ -367,40 +297,27 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	
-	curr_model = STARTING_MODEL;
-
-	detectors[curr_model-1] = new Detector(cfg_files[curr_model-1],weights_file);
-	detectors[curr_model] = new Detector(cfg_files[curr_model],weights_file);
-	detectors[curr_model+1] = new Detector(cfg_files[curr_model+1],weights_file);
-	
+	int model = 0;
+	for(model; model<=MAX_MODEL; model++){
+		detectors[model] = new Detector(cfg_files[model],weights_file);
+	}
+		
 	obj_names = objects_names_from_file(names_file);
 	
-	int err;
-	err = pipe(modelPipe);
-	if (err < 0){
-		perror("ERROR creating pipe");
-		exit(1);
-	}
-
 	pthread_mutex_init(&bufferMutex, NULL);
-	pthread_mutex_init(&detectorMutex, NULL);
-	pthread_mutex_init(&detector0Mutex, NULL);
-	pthread_mutex_init(&detector1Mutex, NULL);
 	pthread_cond_init(&bufferCond, NULL);
 	
 	//connect to client
 	int sockfd, newsockfd1, newsockfd2;
 	connect_to_client(sockfd, newsockfd1, newsockfd2, argv);
 	
-	pthread_t thread1, thread2, thread3;
+	pthread_t thread1, thread2;
 	pthread_create(&thread1, NULL, recvFrame, (void *)&newsockfd1);
 	pthread_create(&thread2, NULL, getSendResult, (void *)&newsockfd2);
-	pthread_create(&thread3, NULL, updateDetectionModel, NULL);
-
+	
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
-	pthread_join(thread3, NULL);
-
+	
 	close(sockfd);
 	close(newsockfd1);
 	close(newsockfd2);

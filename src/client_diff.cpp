@@ -263,7 +263,7 @@ void *recvrend(void *fd) {
 		double time_spent = spent.count();
 		
 		// quick console output 
-		printf("R | id %d | correct model %d | used model %d | latency %f | det time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count(), n);
+		printf("R | %d | %d | %d | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count());
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -425,10 +425,10 @@ void *control(void *) {
 		
 		bool on_time = (spent <= FRAME_DEADLINE) ? true : false;
 		double diff = ((spent - FRAME_DEADLINE)*1000);
-		diff = !on_time ? diff*(diff*MISS_EXPONENT) : diff;
+		diff = on_time ? pow(diff,ON_TIME_EXP) : pow(diff,LATE_EXP);
 		
 		if (control_buffer.size() == control_window) { //control window full, start checking
-			control_buffer[pos] = on_time;
+			control_buffer[pos] = diff;
 			pos = (pos + 1) % control_window;
 		} else {	//control window not full yet, wait till its full
 			control_buffer.push_back(diff);
@@ -436,23 +436,23 @@ void *control(void *) {
 
 		//int total_on_time = count(control_buffer.begin(), control_buffer.end(), true);
 		double sum = std::accumulate(control_buffer.begin(), control_buffer.end(), 0.0);
-		if (sum <= HIGH_SUM * CONTROL_WINDOW) { 
+		if (sum <= UP_SUM * CONTROL_WINDOW) { 
 			if (local_curr_model < MAX_MODEL) {
 				local_curr_model++;
 				control_buffer.clear();
 				pos = 0;
-				printf("U | sum %f | new model %d\n", sum, local_curr_model);
+				//printf("U | sum %f | new model %d\n", sum, local_curr_model);
 				
 				pthread_mutex_lock(&modelMutex);
 				curr_model = local_curr_model; 
 				pthread_mutex_unlock(&modelMutex);
 			}
-		} else if (sum >= LOW_SUM * CONTROL_WINDOW) { 
+		} else if (sum >= DOWN_SUM * CONTROL_WINDOW) { 
 			if(local_curr_model > MIN_MODEL) {
 				local_curr_model--;
 				control_buffer.clear();
 				pos = 0;
-				printf("U | sum %f | new model %d\n", sum, local_curr_model);
+				//printf("U | sum %f | new model %d\n", sum, local_curr_model);
 				
 				pthread_mutex_lock(&modelMutex);
 				curr_model = local_curr_model; 

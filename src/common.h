@@ -1,16 +1,17 @@
 #define BUFF_SIZE 2048
 #define MAX_FRAME_BUFFER_SIZE 30
 #define FRAME_DEADLINE 0.04
-#define MAX_MODEL 18
+#define MAX_MODEL 18  //15 for 16model server
 #define MIN_MODEL 0
-#define STARTING_MODEL 3
+#define STARTING_MODEL 0
 
 #define CONTROL_WINDOW 50
 #define LOW_ON_TIME 35
 #define HIGH_ON_TIME 50
-#define LOW_SUM 5
-#define HIGH_SUM -10
-#define MISS_EXPONENT 1
+#define DOWN_SUM 2 //average ms 
+#define UP_SUM -5 //average ms
+#define LATE_EXP 1.25
+#define ON_TIME_EXP 1.0
 
 
 // object that is returned by the server in which information on a detected object is stored
