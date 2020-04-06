@@ -94,10 +94,13 @@ void *updateDetectionModel(void *) {
 	//local bool used since this is the only thread that modifies the global version, which allows for reading without lock
 	int local_detector = STARTING_MODEL;
 	bool detector_ready[19] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
-	detector_ready[local_detector-1] = true;
+	if(local_detector!=MIN_MODEL){
+		detector_ready[local_detector-1] = true;
+	}
 	detector_ready[local_detector] = true;
-	detector_ready[local_detector+1] = true;
-	
+	if(local_detector!=MAX_MODEL){
+		detector_ready[local_detector+1] = true;
+	}
 	
 	while (true) {
 		//read from sock to receive message from client
@@ -368,11 +371,14 @@ int main(int argc, char *argv[]) {
 	}
 	
 	curr_model = STARTING_MODEL;
-
-	detectors[curr_model-1] = new Detector(cfg_files[curr_model-1],weights_file);
-	detectors[curr_model] = new Detector(cfg_files[curr_model],weights_file);
-	detectors[curr_model+1] = new Detector(cfg_files[curr_model+1],weights_file);
 	
+	if(curr_model!=MIN_MODEL){
+		detectors[curr_model-1] = new Detector(cfg_files[curr_model-1],weights_file);
+	}
+	detectors[curr_model] = new Detector(cfg_files[curr_model],weights_file);
+	if(curr_model!=MAX_MODEL){
+		detectors[curr_model+1] = new Detector(cfg_files[curr_model+1],weights_file);
+	}
 	obj_names = objects_names_from_file(names_file);
 	
 	int err;
