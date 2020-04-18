@@ -3,7 +3,7 @@ project( Thesis )
 find_package( OpenCV 4 REQUIRED )
 set(CMAKE_CXX_FLAGS "-std=c++11 -pthread")
 set(DARKNET_PATH darknet)
-set(DARKNET_LIB_NAME libdark)
+set(DARKNET_LIB_NAME libdarknet)
 #set(IPERF_PATH iperf)
 #set(IPERF_LIB_NAME libiperf)
 
@@ -17,7 +17,7 @@ include_directories(
 #set_property(TARGET ${IPERF_LIB_NAME} PROPERTY IMPORTED_LOCATION "/usr/local/lib/libiperf.so")
 
 add_library(${DARKNET_LIB_NAME} SHARED IMPORTED)
-set_property(TARGET ${DARKNET_LIB_NAME} PROPERTY IMPORTED_LOCATION "${DARKNET_PATH}/libdark.so")
+set_property(TARGET ${DARKNET_LIB_NAME} PROPERTY IMPORTED_LOCATION "${DARKNET_PATH}/libdarknet.so")
 
 add_executable( server src/server.cpp )
 add_executable( server_3models src/server_3models.cpp )
