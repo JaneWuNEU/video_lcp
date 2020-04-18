@@ -297,10 +297,6 @@ void *capsend(void *fd) {
 	frame_obj local_frame_obj;
 	size_t buffer_size;
 	
-	auto start = std::chrono::steady_clock::now();
-	auto end = std::chrono::steady_clock::now();
-	std::chrono::duration<double> spent;
-	
 	pid_t pid = fork();
 	if(pid < 0){
 		perror("fork failed");
@@ -315,6 +311,9 @@ void *capsend(void *fd) {
 		exit(0);
 	} else {
 		printf("parent continues\n");
+		auto start = std::chrono::system_clock::now();
+		auto end = std::chrono::system_clock::now();
+		std::chrono::duration<double> spent;
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
 			start = std::chrono::system_clock::now();
@@ -390,7 +389,7 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-			end = std::chrono::steady_clock::now();
+			end = std::chrono::system_clock::now();
 			spent = end - start;
 			printf("S | ack %d | %f \n", local_frame_obj.frame_id, spent.count());
 		}
