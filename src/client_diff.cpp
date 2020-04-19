@@ -192,15 +192,7 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
-		
-		//receive detection time of frame on which server performed detection
-		err = read(sockfd, &local_frame_obj.detection_time, sizeof(std::chrono::duration<double>));
-		if (err < 0){
-			perror("ERROR reading socket");
-			close(sockfd);
-			exit(1);
-		} 
-		
+				
 		//receive cap to send time 
 		err = read(sockfd, &local_frame_obj.cap_to_send_time, sizeof(std::chrono::duration<double>));
 		if (err < 0){
@@ -209,8 +201,24 @@ void *recvrend(void *fd) {
 			exit(1);
 		} 
 		
-		//receive id to ack time
-		err = read(sockfd, &local_frame_obj.id_to_ack_time, sizeof(std::chrono::duration<double>));
+		//receive server to ack time
+		err = read(sockfd, &local_frame_obj.server_to_ack_time, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR reading socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		//receive server to detection time
+		err = read(sockfd, &local_frame_obj.server_to_detection_time, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR reading socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		//receive detection time of frame on which server performed detection
+		err = read(sockfd, &local_frame_obj.detection_time, sizeof(std::chrono::duration<double>));
 		if (err < 0){
 			perror("ERROR reading socket");
 			close(sockfd);
@@ -291,7 +299,7 @@ void *recvrend(void *fd) {
 		double time_spent = spent.count();
 		
 		// quick console output 
-		printf("R | %d | %d | %d | %f | %f | %f | %f | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count(), local_frame_obj.cap_to_send_time.count(), local_frame_obj.id_to_ack_time.count(), receive_time.count(), local_frame_obj.server_time.count());
+		printf("R | %d | %d | %d | %f | %f | %f | %f | %f | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.cap_to_send_time.count(), local_frame_obj.server_to_ack_time.count(), local_frame_obj.server_to_detection_time.count(), local_frame_obj.detection_time.count(), local_frame_obj.server_time.count(), receive_time.count());
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));

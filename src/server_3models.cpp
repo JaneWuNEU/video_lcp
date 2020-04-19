@@ -163,12 +163,15 @@ void *getSendResult(void *fd) {
 		local_frame_obj.used_model = curr_model;
 		pthread_mutex_unlock(&detectorMutex);
 		
+		auto end = std::chrono::system_clock::now();
+		local_frame_obj.server_to_detection_time = end - local_frame_obj.server_receive;
+		
 		auto start = std::chrono::system_clock::now();
 		
 		local_result_vec = detectors[local_frame_obj.used_model]->detect(local_frame_obj.frame);
 
 		//temporary timing to see how old the frame is after object detection
-		auto end = std::chrono::system_clock::now();
+		end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - start;
 		
 		//send the frame id of the frame on which object detection is performed
@@ -187,14 +190,6 @@ void *getSendResult(void *fd) {
 			exit(1);
 		}
 
-		//send detection time 
-		err = write(sockfd, &spent, sizeof(std::chrono::duration<double>));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		}
-		
 		//send cap_to_send time 
 		err = write(sockfd, &local_frame_obj.cap_to_send_time, sizeof(std::chrono::duration<double>));
 		if (err < 0){
@@ -203,14 +198,30 @@ void *getSendResult(void *fd) {
 			exit(1);
 		}
 		
-		//send id_to_ack_time
-		err = write(sockfd, &local_frame_obj.id_to_ack_time, sizeof(std::chrono::duration<double>));
+		//send server_to_ack_time
+		err = write(sockfd, &local_frame_obj.server_to_ack_time, sizeof(std::chrono::duration<double>));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
 		}
 		
+		//send server_to_detection_time
+		err = write(sockfd, &local_frame_obj.server_to_detection_time, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		}
+	
+		//send detection time 
+		err = write(sockfd, &spent, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		}
+	
 		//send correct model value 
 		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
@@ -267,8 +278,8 @@ void *getSendResult(void *fd) {
 			}*/
 		}
 		
-		auto server_end = std::chrono::system_clock::now();
-		local_frame_obj.server_time = server_end - local_frame_obj.server_receive;
+		 end = std::chrono::system_clock::now();
+		local_frame_obj.server_time = end - local_frame_obj.server_receive;
 		//send server_time
 		err = write(sockfd, &local_frame_obj.server_time, sizeof(std::chrono::duration<double>));
 		if (err < 0){
@@ -380,7 +391,7 @@ void *recvFrame(void *fd) {
 		
 		//timing to see how long it took from receiving id to sending ack
 		auto end = std::chrono::system_clock::now();
-		local_frame_obj.id_to_ack_time = end - local_frame_obj.server_receive;
+		local_frame_obj.server_to_ack_time = end - local_frame_obj.server_receive;
 		
 		
 		// communication done, decode frame
