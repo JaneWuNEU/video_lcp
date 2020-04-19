@@ -172,7 +172,7 @@ void *recvrend(void *fd) {
 	}
 	pthread_mutex_unlock(&frameMutex);
 	
-	while(waitKey(1) < 0) {
+	while(true) {
 		frame_obj local_frame_obj;
 		vector<result_obj> result_vec;
 		
@@ -183,6 +183,7 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
+		auto start = std::chrono::system_clock::now();
 		
 		//receive capture time of frame on which server performed detection
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
@@ -194,6 +195,22 @@ void *recvrend(void *fd) {
 		
 		//receive detection time of frame on which server performed detection
 		err = read(sockfd, &local_frame_obj.detection_time, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR reading socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		//receive cap to send time 
+		err = read(sockfd, &local_frame_obj.cap_to_send_time, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR reading socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		//receive id to ack time
+		err = read(sockfd, &local_frame_obj.id_to_ack_time, sizeof(std::chrono::duration<double>));
 		if (err < 0){
 			perror("ERROR reading socket");
 			close(sockfd);
@@ -250,6 +267,16 @@ void *recvrend(void *fd) {
  			result_vec.push_back(obj); 
 		}
 		
+		//receive server time
+		err = read(sockfd, &local_frame_obj.server_time, sizeof(std::chrono::duration<double>));
+		if (err < 0){
+			perror("ERROR reading socket");
+			close(sockfd);
+			exit(1);
+		} 
+		
+		
+		
 		//printf("read all objects done \n");
 		//copy the frame from the global frame object so the last captured frame can be used for rendering
 		pthread_mutex_lock(&frameMutex);
@@ -260,10 +287,11 @@ void *recvrend(void *fd) {
 		//check how old frame is to see if it is past the deadline or not and write to pipe
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
+		std::chrono::duration<double> receive_time = end - start;
 		double time_spent = spent.count();
 		
 		// quick console output 
-		printf("R | %d | %d | %d | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count());
+		printf("R | %d | %d | %d | %f | %f | %f | %f | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count(), local_frame_obj.cap_to_send_time.count(), local_frame_obj.id_to_ack_time.count(), receive_time.count(), local_frame_obj.server_time.count());
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -376,6 +404,16 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
+			
+			auto end = std::chrono::system_clock::now();
+			local_frame_obj.cap_to_send_time = end - local_frame_obj.start;
+			//send cap_to_send time 
+			err = write(sockfd, &local_frame_obj.cap_to_send_time, sizeof(std::chrono::duration<double>));
+			if (err < 0){
+				perror("ERROR writing to socket");
+				close(sockfd);
+				exit(1);
+			}
 			//printf("S | id %d | correct model %d | vec size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, n);
 			
 			//wait for ack of server that frame is received
