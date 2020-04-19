@@ -311,12 +311,8 @@ void *capsend(void *fd) {
 		exit(0);
 	} else {
 		printf("parent continues\n");
-		auto start = std::chrono::system_clock::now();
-		auto end = std::chrono::system_clock::now();
-		std::chrono::duration<double> spent;
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
-			start = std::chrono::system_clock::now();
 			capture.read(local_frame_obj.frame);
 			if (local_frame_obj.frame.empty()) {
 				perror("ERROR no frame\n");
@@ -389,9 +385,6 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-			end = std::chrono::system_clock::now();
-			spent = end - start;
-			printf("S | ack %d | %f \n", local_frame_obj.frame_id, spent.count());
 		}
 	}
 }

@@ -5,7 +5,9 @@ input_file=$1
 mapfile -t list < $input_file
 
 #tc_adapter=wlp59s0 #wifi
-tc_adapter=enx106530c1958e #eth
+#tc_adapter=enx106530c1958e #eth
+tc_adapter=eno1 #server eth
+
 
 t=$(sleepenh 0)
 
