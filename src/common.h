@@ -28,12 +28,7 @@ struct result_obj {
 struct frame_obj {
 	unsigned int frame_id;
 	std::chrono::system_clock::time_point start;
-	std::chrono::system_clock::time_point server_receive;
 	std::chrono::duration<double> detection_time;
-	std::chrono::duration<double> cap_to_send_time;
-	std::chrono::duration<double> server_to_ack_time;
-	std::chrono::duration<double> server_to_detection_time;
-	std::chrono::duration<double> server_time;
 	unsigned int correct_model;
 	unsigned int used_model;
 	cv::Mat frame;

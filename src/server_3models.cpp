@@ -163,15 +163,12 @@ void *getSendResult(void *fd) {
 		local_frame_obj.used_model = curr_model;
 		pthread_mutex_unlock(&detectorMutex);
 		
-		auto end = std::chrono::system_clock::now();
-		local_frame_obj.server_to_detection_time = end - local_frame_obj.server_receive;
-		
 		auto start = std::chrono::system_clock::now();
 		
 		local_result_vec = detectors[local_frame_obj.used_model]->detect(local_frame_obj.frame);
 
 		//temporary timing to see how old the frame is after object detection
-		end = std::chrono::system_clock::now();
+		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - start;
 		
 		//send the frame id of the frame on which object detection is performed
@@ -190,30 +187,6 @@ void *getSendResult(void *fd) {
 			exit(1);
 		}
 
-		//send cap_to_send time 
-		err = write(sockfd, &local_frame_obj.cap_to_send_time, sizeof(std::chrono::duration<double>));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		}
-		
-		//send server_to_ack_time
-		err = write(sockfd, &local_frame_obj.server_to_ack_time, sizeof(std::chrono::duration<double>));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		}
-		
-		//send server_to_detection_time
-		err = write(sockfd, &local_frame_obj.server_to_detection_time, sizeof(std::chrono::duration<double>));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		}
-	
 		//send detection time 
 		err = write(sockfd, &spent, sizeof(std::chrono::duration<double>));
 		if (err < 0){
@@ -221,7 +194,7 @@ void *getSendResult(void *fd) {
 			close(sockfd);
 			exit(1);
 		}
-	
+		
 		//send correct model value 
 		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
 		if (err < 0){
@@ -277,18 +250,6 @@ void *getSendResult(void *fd) {
 				exit(1);
 			}*/
 		}
-		
-		 end = std::chrono::system_clock::now();
-		local_frame_obj.server_time = end - local_frame_obj.server_receive;
-		//send server_time
-		err = write(sockfd, &local_frame_obj.server_time, sizeof(std::chrono::duration<double>));
-		if (err < 0){
-			perror("ERROR writing to socket");
-			close(sockfd);
-			exit(1);
-		}
-		
-		
 		//printf("S | id %d | correct model %d | used model %d | detection time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), n);
 		//printf("%d : written all objects\n", local_frame_obj.frame_id);
 	}
@@ -313,8 +274,6 @@ void *recvFrame(void *fd) {
 			exit(1);
 		} 
 		//printf("R: %d\n", local_frame_obj.frame_id);
-		
-		local_frame_obj.server_receive = std::chrono::system_clock::now();
 		
 		//read capture time of received frame
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
@@ -372,14 +331,6 @@ void *recvFrame(void *fd) {
 			curr += err;
 		}
 		
-		//receive cap to send time 
-		err = read(sockfd, &local_frame_obj.cap_to_send_time, sizeof(std::chrono::duration<double>));
-		if (err < 0){
-			perror("ERROR reading socket");
-			close(sockfd);
-			exit(1);
-		} 
-		
 		size_t buffer_size = frame_buffer.size();
 		err = write(sockfd, &buffer_size, sizeof(size_t));
 		if (err < 0){
@@ -388,11 +339,6 @@ void *recvFrame(void *fd) {
 			exit(1);
 		} 
 		//printf("R | ack for id %d\n", local_frame_obj.frame_id);
-		
-		//timing to see how long it took from receiving id to sending ack
-		auto end = std::chrono::system_clock::now();
-		local_frame_obj.server_to_ack_time = end - local_frame_obj.server_receive;
-		
 		
 		// communication done, decode frame
 		local_frame_obj.frame = imdecode(vec, 1);
