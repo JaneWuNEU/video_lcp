@@ -283,8 +283,8 @@ void *recvrend(void *fd) {
 		//consoleOutput(local_frame_obj, result_vec, curr_frame_id);
 		
 		//enable next two lines to use image output and show the rendered frame with bounding boxes
-		drawBoxes(local_frame_obj, result_vec, curr_frame_id);
-		imshow("Result", local_frame_obj.frame);
+		//drawBoxes(local_frame_obj, result_vec, curr_frame_id);
+		//imshow("Result", local_frame_obj.frame);
 	}
 } 
 
