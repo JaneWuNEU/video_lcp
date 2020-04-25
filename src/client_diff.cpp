@@ -345,6 +345,10 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			}
+			
+			auto end = std::chrono::system_clock::now();
+			std::chrono::duration<double> spent = end - local_frame_obj.start;
+			double time0 = spent.count();
 
 			//read and send correct model value
 			pthread_mutex_lock(&modelMutex);
@@ -357,11 +361,19 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-
+		
+			end = std::chrono::system_clock::now();
+			spent = end - local_frame_obj.start;
+			double time1 = spent.count();
+			
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
 			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_AREA);
 			imencode(".jpg", local_frame_obj.frame, vec);
 			size_t n = vec.size();
+
+			end = std::chrono::system_clock::now();
+			spent = end - local_frame_obj.start;
+			double time2 = spent.count();
 			
 			err = write(sockfd, &n, sizeof(size_t));
 			if (err < 0){
@@ -376,7 +388,12 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-			//printf("S | id %d | correct model %d | vec size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, n);
+						
+			end = std::chrono::system_clock::now();
+			spent = end - local_frame_obj.start;
+			double time3 = spent.count();
+			
+			printf("S | %d | %f | %f | %f | %f \n", local_frame_obj.frame_id, time0, time1, time2, time3);
 			
 			//wait for ack of server that frame is received
 			err = read(sockfd, &buffer_size, sizeof(size_t));
@@ -385,10 +402,6 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-			auto end = std::chrono::system_clock::now();
-			std::chrono::duration<double> spent = end - local_frame_obj.start;
-			double time_spent = spent.count();
-			printf("S | ack %d | %f \n", local_frame_obj.frame_id, time_spent);
 		}
 	}
 }
