@@ -251,7 +251,7 @@ void *input(void *) {
 						
 			auto e1 = getTickCount();
 
-			//cvtColor(frame, frame, COLOR_BGR2GRAY);
+			cvtColor(frame, frame, COLOR_BGR2GRAY);
 		//	imshow("Result",gray_frame);
 		//	waitKey(0);
 			resize(frame, frame, Size(400,400), 1, 1, INTER_NEAREST);
