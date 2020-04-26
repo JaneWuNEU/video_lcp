@@ -348,10 +348,6 @@ void *capsend(void *fd) {
 				exit(1);
 			}
 			
-			auto end = std::chrono::system_clock::now();
-			std::chrono::duration<double> spent = end - local_frame_obj.start;
-			double time0 = spent.count();
-
 			//read and send correct model value
 			pthread_mutex_lock(&modelMutex);
 			local_frame_obj.correct_model = curr_model;
@@ -364,10 +360,6 @@ void *capsend(void *fd) {
 				exit(1);
 			} 
 		
-			end = std::chrono::system_clock::now();
-			spent = end - local_frame_obj.start;
-			double time1 = spent.count();
-			
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
 			
 			auto e1 = getTickCount();
@@ -384,10 +376,6 @@ void *capsend(void *fd) {
 			auto time = (e2 - e1)/ getTickFrequency();
 			cout << time << "\n";
 
-			end = std::chrono::system_clock::now();
-			spent = end - local_frame_obj.start;
-			double time2 = spent.count();
-			
 			err = write(sockfd, &n, sizeof(size_t));
 			if (err < 0){
 				perror("ERROR writing to socket");
@@ -402,12 +390,6 @@ void *capsend(void *fd) {
 				exit(1);
 			} 
 						
-			end = std::chrono::system_clock::now();
-			spent = end - local_frame_obj.start;
-			double time3 = spent.count();
-			
-			printf("S | %d | %f | %f | %f | %f \n", local_frame_obj.frame_id, time0, time1, time2, time3);
-			
 			//wait for ack of server that frame is received
 			err = read(sockfd, &buffer_size, sizeof(size_t));
 			if (err < 0){
