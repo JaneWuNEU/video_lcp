@@ -20,6 +20,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/core/utility.hpp>
 
 #include "common.h"
 
@@ -311,6 +312,7 @@ void *capsend(void *fd) {
 		exit(0);
 	} else {
 		printf("parent continues\n");
+		cout << useOptimized();
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
 			capture.read(local_frame_obj.frame);
@@ -367,9 +369,17 @@ void *capsend(void *fd) {
 			double time1 = spent.count();
 			
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
+			
+			auto e1 = getTickCount();
+
 			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
 			imencode(".jpg", local_frame_obj.frame, vec);
 			size_t n = vec.size();
+			
+			auto e2 = getTickCount();
+			
+			auto time = (e2 - e1)/ getTickFrequency();
+			cout << time << "\n";
 
 			end = std::chrono::system_clock::now();
 			spent = end - local_frame_obj.start;
