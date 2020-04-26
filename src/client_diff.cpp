@@ -263,7 +263,7 @@ void *recvrend(void *fd) {
 		double time_spent = spent.count();
 		
 		// quick console output 
-		printf("R | %d | %d | %d | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count());
+		//printf("R | %d | %d | %d | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count());
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -367,7 +367,7 @@ void *capsend(void *fd) {
 			double time1 = spent.count();
 			
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
-			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_AREA);
+			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
 			imencode(".jpg", local_frame_obj.frame, vec);
 			size_t n = vec.size();
 
