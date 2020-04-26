@@ -15,7 +15,7 @@ double resizePerfEval(const Mat& frame, unsigned int n, T resizeFlag) {
 
     for (auto i = 0; i < n; i++) {
         Mat temp;
-        resize(frame, temp, Size(), 0.5, 0.5, resizeFlag); 
+        resize(frame, temp, Size(960,540), 1, 1, resizeFlag); 
     }
 
     return chrono::duration <double, milli>(chrono::steady_clock::now() - start).count();

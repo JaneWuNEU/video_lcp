@@ -284,8 +284,8 @@ void *recvrend(void *fd) {
 		//consoleOutput(local_frame_obj, result_vec, curr_frame_id);
 		
 		//enable next two lines to use image output and show the rendered frame with bounding boxes
-		drawBoxes(local_frame_obj, result_vec, curr_frame_id);
-		imshow("Result", local_frame_obj.frame);
+		//drawBoxes(local_frame_obj, result_vec, curr_frame_id);
+		//imshow("Result", local_frame_obj.frame);
 	}
 } 
 
@@ -368,13 +368,17 @@ void *capsend(void *fd) {
 			//imshow("Result",gray_frame);
 			//waitKey(0);
 			resize(gray_frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
+			
+			auto e2 = getTickCount();
+			auto time1 = (e2 - e1)/ getTickFrequency();
+			
 			imencode(".jpg", local_frame_obj.frame, vec);
 			size_t n = vec.size();
 			
-			auto e2 = getTickCount();
+			auto e3 = getTickCount();
+			auto time2 = (e3 - e2)/ getTickFrequency();
 			
-			auto time = (e2 - e1)/ getTickFrequency();
-			cout << time << "\n";
+			cout << time1 << " | " << time2 << "\n";
 
 			err = write(sockfd, &n, sizeof(size_t));
 			if (err < 0){

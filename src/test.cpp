@@ -255,14 +255,17 @@ void *input(void *) {
 		//	imshow("Result",gray_frame);
 		//	waitKey(0);
 			resize(frame, frame, Size(400,400), 1, 1, INTER_NEAREST);
+			
+			auto e2 = getTickCount();
+			auto time1 = (e2 - e1)/ getTickFrequency();
+			
 			imencode(".jpg", frame, vec);
 			size_t n = vec.size();
 			
-			auto e2 = getTickCount();
+			auto e3 = getTickCount();
+			auto time2 = (e3 - e2)/ getTickFrequency();
 			
-			auto time = (e2 - e1)/ getTickFrequency();
-			
-			cout << time << "\n";
+			cout << time1 << " | " << time2 << "\n";
 		}
 	}
 }
