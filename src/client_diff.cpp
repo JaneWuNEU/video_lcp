@@ -292,12 +292,7 @@ void *recvrend(void *fd) {
 //capture and send a frame to the server for object detection
 void *capsend(void *fd) {
 	int sockfd = *(int*)fd;
-	int err;
-	vector<uchar> vec;
-	unsigned int frame_counter = 0;
-	frame_obj local_frame_obj;
-	size_t buffer_size;
-	
+
 	pid_t pid = fork();
 	if(pid < 0){
 		perror("fork failed");
@@ -312,6 +307,11 @@ void *capsend(void *fd) {
 		exit(0);
 	} else {
 		printf("parent continues\n");
+		int err;
+		vector<uchar> vec;
+		unsigned int frame_counter = 0;
+		frame_obj local_frame_obj;
+		size_t buffer_size;
 		cout << useOptimized();
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
@@ -363,11 +363,8 @@ void *capsend(void *fd) {
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
 			
 			auto e1 = getTickCount();
-			Mat gray_frame;
-			cvtColor(local_frame_obj.frame, gray_frame, COLOR_BGR2GRAY);
-			//imshow("Result",gray_frame);
-			//waitKey(0);
-			resize(gray_frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
+			cvtColor(local_frame_obj.frame, local_frame_obj.frame, COLOR_BGR2GRAY);
+			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
 			
 			auto e2 = getTickCount();
 			auto time1 = (e2 - e1)/ getTickFrequency();
@@ -378,7 +375,7 @@ void *capsend(void *fd) {
 			auto e3 = getTickCount();
 			auto time2 = (e3 - e2)/ getTickFrequency();
 			
-			cout << time1 << " | " << time2 << "\n";
+			cout << time1 << " | " << time2 << " | " << n << "\n";
 
 			err = write(sockfd, &n, sizeof(size_t));
 			if (err < 0){
@@ -393,7 +390,7 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-						
+			
 			//wait for ack of server that frame is received
 			err = read(sockfd, &buffer_size, sizeof(size_t));
 			if (err < 0){
