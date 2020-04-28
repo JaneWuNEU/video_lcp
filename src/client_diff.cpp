@@ -312,7 +312,6 @@ void *capsend(void *fd) {
 		exit(0);
 	} else {
 		printf("parent continues\n");
-		cout << useOptimized();
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
 			capture.read(local_frame_obj.frame);
@@ -365,7 +364,7 @@ void *capsend(void *fd) {
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
 			
 			auto e1 = getTickCount();
-			cvtColor(local_frame_obj.frame, local_frame_obj.frame, COLOR_BGR2GRAY);
+			//cvtColor(local_frame_obj.frame, local_frame_obj.frame, COLOR_BGR2GRAY);
 			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
 			
 			auto e2 = getTickCount();

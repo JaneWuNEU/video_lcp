@@ -21,6 +21,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core/utility.hpp>
+#include <opencv2/core/utils/logger.hpp>
 
 using namespace cv;
 using namespace std;
@@ -239,7 +240,6 @@ void *input(void *) {
 		size_t buffer_size;
 		Mat frame;
 		
-		cout << useOptimized();
 		while(true) {
 			capture.read(frame);
 			if (frame.empty()) {
@@ -252,8 +252,8 @@ void *input(void *) {
 			auto e1 = getTickCount();
 
 			cvtColor(frame, frame, COLOR_BGR2GRAY);
-		//	imshow("Result",gray_frame);
-		//	waitKey(0);
+			//imshow("Result",frame);
+			//waitKey(1);
 			resize(frame, frame, Size(400,400), 1, 1, INTER_NEAREST);
 			
 			auto e2 = getTickCount();
@@ -265,13 +265,15 @@ void *input(void *) {
 			auto e3 = getTickCount();
 			auto time2 = (e3 - e2)/ getTickFrequency();
 			
-			cout << time1 << " | " << time2 << "\n";
+			cout << time1 << " | " << time2 << " | " << vec.size() << "\n";
 		}
 	}
 }
 
 int main(int argc, char *argv[]) {
-	capture.open(argv[1],CAP_GSTREAMER);
+	cout << getBuildInformation();
+	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_DEBUG);
+	capture.open(argv[1], CAP_GSTREAMER);
 	if (!capture.isOpened()) {
 		perror("ERROR opening video\n");
 		return 1;
@@ -291,7 +293,7 @@ int main(int argc, char *argv[]) {
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
 	pthread_join(thread3, NULL);
-pthread_join(thread4, NULL);
+	pthread_join(thread4, NULL);
 	pthread_join(thread5, NULL);
 	
 	return 0;
