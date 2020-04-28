@@ -313,11 +313,12 @@ void *capsend(void *fd) {
 	} else {
 		printf("parent continues\n");
 		while(true) {
+			Mat frame;
 			//capture frame into local frame object so capturing is not done within mutex
-			capture.read(local_frame_obj.frame);
-			cout << local_frame_obj.frame.size() << " | " << local_frame_obj.frame.elemSize () << "\n";
+			capture.read(frame);
+			cout << frame.size() << " | " << frame.elemSize () << "\n";
 			//cout << local_frame_obj.frame << "\n\n";
-			if (local_frame_obj.frame.empty()) {
+			if (frame.empty()) {
 				perror("ERROR no frame\n");
 				break;
 			}
@@ -327,7 +328,7 @@ void *capsend(void *fd) {
 			
 			//copy local frame into the global frame variable so it can be used for rendering of an image
 			pthread_mutex_lock(&frameMutex);
-			global_frame_obj = local_frame_obj;
+			global_frame_obj.frame = frame;
 			if (frame_counter == 1) {
 				pthread_cond_signal(&frameCond);
 			}
@@ -365,12 +366,12 @@ void *capsend(void *fd) {
 			
 			auto e1 = getTickCount();
 			//cvtColor(local_frame_obj.frame, local_frame_obj.frame, COLOR_BGR2GRAY);
-			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
+			resize(frame, frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
 			
 			auto e2 = getTickCount();
 			auto time1 = (e2 - e1)/ getTickFrequency();
 			
-			imencode(".jpg", local_frame_obj.frame, vec);
+			imencode(".jpg", frame, vec);
 			size_t n = vec.size();
 			
 			auto e3 = getTickCount();
