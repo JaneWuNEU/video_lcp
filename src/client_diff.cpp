@@ -371,13 +371,16 @@ void *capsend(void *fd) {
 			auto e2 = getTickCount();
 			auto time1 = (e2 - e1)/ getTickFrequency();
 			
+			size_t n0 = vec.size();
+			vec.clear();
+			size_t n1 = vec.size();
 			imencode(".jpg", frame, vec);
 			size_t n = vec.size();
 			
 			auto e3 = getTickCount();
 			auto time2 = (e3 - e2)/ getTickFrequency();
 			
-			cout << time1 << " | " << time2 << " | " << n << "\n";
+			cout << time1 << " | " << time2 << " | " << n0 << " " << n1 << " " << n << "\n";
 
 			err = write(sockfd, &n, sizeof(size_t));
 			if (err < 0){
