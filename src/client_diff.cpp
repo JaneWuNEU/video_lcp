@@ -292,7 +292,12 @@ void *recvrend(void *fd) {
 //capture and send a frame to the server for object detection
 void *capsend(void *fd) {
 	int sockfd = *(int*)fd;
-
+	int err;
+	vector<uchar> vec;
+	unsigned int frame_counter = 0;
+	frame_obj local_frame_obj;
+	size_t buffer_size;
+	
 	pid_t pid = fork();
 	if(pid < 0){
 		perror("fork failed");
@@ -307,15 +312,12 @@ void *capsend(void *fd) {
 		exit(0);
 	} else {
 		printf("parent continues\n");
-		int err;
-		vector<uchar> vec;
-		unsigned int frame_counter = 0;
-		frame_obj local_frame_obj;
-		size_t buffer_size;
 		cout << useOptimized();
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
 			capture.read(local_frame_obj.frame);
+			cout << local_frame_obj.frame.size() << " | " << local_frame_obj.frame.elemSize () << "\n";
+			//cout << local_frame_obj.frame << "\n\n";
 			if (local_frame_obj.frame.empty()) {
 				perror("ERROR no frame\n");
 				break;
@@ -390,7 +392,7 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-			
+						
 			//wait for ack of server that frame is received
 			err = read(sockfd, &buffer_size, sizeof(size_t));
 			if (err < 0){
