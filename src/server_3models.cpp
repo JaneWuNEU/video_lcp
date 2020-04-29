@@ -313,7 +313,6 @@ void *recvFrame(void *fd) {
 			close(sockfd);
 			exit(1);
 		}
-		
 		//printf("R: %d vec size %zu\n", local_frame_obj.frame_id, n);
 		
 		//read until frame is fully received and add this to the vector
