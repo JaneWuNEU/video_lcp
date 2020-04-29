@@ -264,7 +264,7 @@ void *recvrend(void *fd) {
 		double time_spent = spent.count();
 		
 		// quick console output 
-		//printf("R | %d | %d | %d | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count());
+		printf("R | %d | %d | %d | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count());
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -320,7 +320,7 @@ void *capsend(void *fd) {
 			Mat frame;
 			//capture frame into local frame object so capturing is not done within mutex
 			capture.read(frame);
-			cout << frame.size() << " | " << frame.elemSize () << "\n";
+			//cout << frame.size() << " | " << frame.elemSize () << "\n";
 			//cout << local_frame_obj.frame << "\n\n";
 			if (frame.empty()) {
 				perror("ERROR no frame\n");
@@ -368,24 +368,24 @@ void *capsend(void *fd) {
 		
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
 			
-			auto e1 = getTickCount();
-			//cvtColor(local_frame_obj.frame, local_frame_obj.frame, COLOR_BGR2GRAY);
+			//auto e1 = getTickCount();
+			cvtColor(frame, frame, COLOR_BGR2GRAY);
 			resize(frame, frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
-			cout << frame.size() << " | " << frame.elemSize () << "\n";
+			//cout << frame.size() << " | " << frame.elemSize () << "\n";
 			
-			auto e2 = getTickCount();
-			auto time1 = (e2 - e1)/ getTickFrequency();
+			//auto e2 = getTickCount();
+			//auto time1 = (e2 - e1)/ getTickFrequency();
 			
-			size_t n0 = vec.size();
-			vec.clear();
-			size_t n1 = vec.size();
+			//size_t n0 = vec.size();
+			//vec.clear();
+			//size_t n1 = vec.size();
 			imencode(".jpg", frame, vec, compression_params);
 			size_t n = vec.size();
 			
-			auto e3 = getTickCount();
-			auto time2 = (e3 - e2)/ getTickFrequency();
+			//auto e3 = getTickCount();
+			//auto time2 = (e3 - e2)/ getTickFrequency();
 			
-			cout << time1 << " | " << time2 << " | " << n0 << " " << n1 << " " << n << "\n";
+			//cout << time1 << " | " << time2 << " | " << n0 << " " << n1 << " " << n << "\n";
 
 			err = write(sockfd, &n, sizeof(size_t));
 			if (err < 0){
