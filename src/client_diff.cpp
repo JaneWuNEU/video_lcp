@@ -298,6 +298,10 @@ void *capsend(void *fd) {
 	frame_obj local_frame_obj;
 	size_t buffer_size;
 	
+	vector<int> compression_params;
+    compression_params.push_back(IMWRITE_JPEG_QUALITY);
+    compression_params.push_back(80);
+	
 	pid_t pid = fork();
 	if(pid < 0){
 		perror("fork failed");
@@ -367,6 +371,7 @@ void *capsend(void *fd) {
 			auto e1 = getTickCount();
 			//cvtColor(local_frame_obj.frame, local_frame_obj.frame, COLOR_BGR2GRAY);
 			resize(frame, frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
+			cout << frame.size() << " | " << frame.elemSize () << "\n";
 			
 			auto e2 = getTickCount();
 			auto time1 = (e2 - e1)/ getTickFrequency();
@@ -374,7 +379,7 @@ void *capsend(void *fd) {
 			size_t n0 = vec.size();
 			vec.clear();
 			size_t n1 = vec.size();
-			imencode(".jpg", frame, vec);
+			imencode(".jpg", frame, vec, compression_params);
 			size_t n = vec.size();
 			
 			auto e3 = getTickCount();
