@@ -17,6 +17,7 @@ sudo tc class add dev $tc_adapter parent 1: classid 1:11 htb rate 10mbit
 
 #iperf3 -c netmsys.org -p 10001 -t 1000 &
 #iperf3 -c fs0.das5.cs.vu.nl -p 10004 -t 1000 &
+iperf3 -c 130.83.163.233 -p 10001 -t 1000 &
 
 SECONDS=0
 
@@ -50,25 +51,25 @@ do
 	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	t=$(sleepenh $t 1)
 	
-	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+#	t=$(sleepenh $t 1)
 	
-	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+#	t=$(sleepenh $t 1)
 	
-	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+#	t=$(sleepenh $t 1)
 	
-	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+#	t=$(sleepenh $t 1)
 	
-	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+#	t=$(sleepenh $t 1)
 done
 
 echo "shaping completed, removing qdisc"
