@@ -17,7 +17,7 @@ sudo tc qdisc del dev $tc_adapter root
 
 sudo tc qdisc add dev $tc_adapter root tbf rate 10mbit latency 15ms burst 3000
 
-iperf3 -c netmsys.org -p 10001 -t 1000 &
+#iperf3 -c netmsys.org -p 10001 -t 1000 &
 #iperf3 -c fs0.das5.cs.vu.nl -p 10004 -t 1000 &
 #iperf3 -c 130.83.163.233 -p 10001 -t 1000 &
 
@@ -35,23 +35,23 @@ do
 	
 	#date +"B | %H:%M:%S.%N | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	t=$(sleepenh $t 1)
 	
 	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	t=$(sleepenh $t 1)
 
 	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	t=$(sleepenh $t 1)
 	
 	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	t=$(sleepenh $t 1)
 	
 	duration=$SECONDS
-	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	t=$(sleepenh $t 1)
 	
 #	duration=$SECONDS

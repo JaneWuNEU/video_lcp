@@ -173,7 +173,7 @@ void *recvrend(void *fd) {
 	}
 	pthread_mutex_unlock(&frameMutex);
 	
-	while(waitKey(1) < 0) {
+	while(true) { 	// When using show image  : waitKey(1) < 0) {
 		frame_obj local_frame_obj;
 		vector<result_obj> result_vec;
 		
@@ -229,7 +229,7 @@ void *recvrend(void *fd) {
 		//for each located object, receive one result_obj and store this in the result vector
 		for (size_t i = 0; i < n; ++i) {
 			result_obj obj;
-			err = read(sockfd, &obj.x, sizeof(unsigned int)); 
+/*			err = read(sockfd, &obj.x, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
 			err = read(sockfd, &obj.y, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
@@ -241,14 +241,14 @@ void *recvrend(void *fd) {
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
 			err = read(sockfd, &obj.obj_id, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
-			
-		/*	err = read(sockfd,&obj,sizeof(result_obj));
+*/			
+			err = read(sockfd,&obj,sizeof(result_obj));
 			if (err < 0){ 
 				perror("ERROR reading from socket");
 				close(sockfd);
 				exit(1);
-		  	} */
- 			result_vec.push_back(obj); 
+		  	} 
+ 			result_vec.push_back(obj);
 		}
 		
 		//printf("read all objects done \n");
@@ -261,10 +261,10 @@ void *recvrend(void *fd) {
 		//check how old frame is to see if it is past the deadline or not and write to pipe
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
-		double time_spent = spent.count();
+		double time_spent = spent.count() * 1000;
 		
 		// quick console output 
-		printf("R | %d | %d | %d | %f | %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count());
+		printf(" , , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent, local_frame_obj.detection_time.count());
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -280,7 +280,7 @@ void *recvrend(void *fd) {
 			exit(1);
 		}
 		
-		//enable next line to use console output
+		//enable next line to use console output of object locations
 		//consoleOutput(local_frame_obj, result_vec, curr_frame_id);
 		
 		//enable next two lines to use image output and show the rendered frame with bounding boxes
@@ -317,11 +317,9 @@ void *capsend(void *fd) {
 	} else {
 		printf("parent continues\n");
 		while(true) {
-			Mat frame;
 			//capture frame into local frame object so capturing is not done within mutex
+			Mat frame;
 			capture.read(frame);
-			//cout << frame.size() << " | " << frame.elemSize () << "\n";
-			//cout << local_frame_obj.frame << "\n\n";
 			if (frame.empty()) {
 				perror("ERROR no frame\n");
 				break;
@@ -367,26 +365,11 @@ void *capsend(void *fd) {
 			} 
 		
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
-			
-			//auto e1 = getTickCount();
 			cvtColor(frame, frame, COLOR_BGR2GRAY);
 			resize(frame, frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
-			//cout << frame.size() << " | " << frame.elemSize () << "\n";
-			
-			//auto e2 = getTickCount();
-			//auto time1 = (e2 - e1)/ getTickFrequency();
-			
-			//size_t n0 = vec.size();
-			//vec.clear();
-			//size_t n1 = vec.size();
 			imencode(".jpg", frame, vec, compression_params);
 			size_t n = vec.size();
 			
-			//auto e3 = getTickCount();
-			//auto time2 = (e3 - e2)/ getTickFrequency();
-			
-			//cout << time1 << " | " << time2 << " | " << n0 << " " << n1 << " " << n << "\n";
-
 			err = write(sockfd, &n, sizeof(size_t));
 			if (err < 0){
 				perror("ERROR writing to socket");

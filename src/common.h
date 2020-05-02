@@ -1,20 +1,20 @@
-#define BUFF_SIZE 2048
+#define BUFF_SIZE 8192 //4096 2048
 #define MAX_FRAME_BUFFER_SIZE 30
-#define FRAME_DEADLINE 0.04
+#define FRAME_DEADLINE 1.0/30
 #define MAX_MODEL 18  //15 for 16model server, 18 for others
 #define MIN_MODEL 0
 #define STARTING_MODEL 0
 
 #define CONTROL_WINDOW 50
-#define LOW_ON_TIME 35
-#define HIGH_ON_TIME 50
+#define LOW_ON_TIME 35 // switch down if less or equal to X are on time
+#define HIGH_ON_TIME 50 // switch up if more or equal to X are on time 
 
-#define DOWN_SUM 5 //average ms 
-#define UP_SUM -10 //average ms
-#define LATE_EXP 1.5
-#define ON_TIME_EXP 1.0
+#define DOWN_SUM 5 //switch down when average latency score is 5ms late 
+#define UP_SUM -10 //switch up when average latency score is 10ms early 
+#define LATE_EXP 1.5 //score exponent for late latency
+#define ON_TIME_EXP 1.0 //score exponent for early latency 
 
-#define HISTORY_WEIGHT 1.0/4
+#define HISTORY_WEIGHT 1.0/4 // weight for the history  		Normal weight = (1-History weight)
 
 
 // object that is returned by the server in which information on a detected object is stored

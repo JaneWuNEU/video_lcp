@@ -223,7 +223,7 @@ void *getSendResult(void *fd) {
 		
 		//for each detected object copy the data into a result_obj and send this to the client
 		for (auto &i : local_result_vec) {
-			err = write(sockfd, &i.x, sizeof(unsigned int)); 
+/*			err = write(sockfd, &i.x, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
 			err = write(sockfd, &i.y, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
@@ -235,8 +235,8 @@ void *getSendResult(void *fd) {
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
 			err = write(sockfd, &i.obj_id, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
-			
-			/*curr_result_obj.x = i.x; 
+*/			
+			curr_result_obj.x = i.x; 
 			curr_result_obj.y = i.y;
 			curr_result_obj.w = i.w;
 			curr_result_obj.h = i.h;
@@ -248,7 +248,7 @@ void *getSendResult(void *fd) {
 				perror("ERROR writing to socket");
 				close(sockfd);
 				exit(1);
-			}*/
+			}
 		}
 		//printf("S | id %d | correct model %d | used model %d | detection time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), n);
 		//printf("%d : written all objects\n", local_frame_obj.frame_id);
