@@ -12,6 +12,7 @@
 #include <fstream>
 #include <pthread.h>
 #include <chrono>
+#include <numeric>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
@@ -19,6 +20,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/core/utility.hpp>
 
 #include "common.h"
 
@@ -35,6 +37,10 @@ vector<string> obj_names;
 unsigned int curr_model;
 int capture_frame_height;
 int capture_frame_width;
+int global_final_frame;
+
+int low_on_time;
+int high_on_time;
 
 string shaping_input;
 bool shaping = true;
@@ -171,7 +177,7 @@ void *recvrend(void *fd) {
 	}
 	pthread_mutex_unlock(&frameMutex);
 	
-	while(waitKey(1) < 0) {
+	while(true) { 	// When using show image  : waitKey(1) < 0) {
 		frame_obj local_frame_obj;
 		vector<result_obj> result_vec;
 		
@@ -182,6 +188,16 @@ void *recvrend(void *fd) {
 			close(sockfd);
 			exit(1);
 		} 
+		
+		if(local_frame_obj.frame_id == UINT_MAX){
+			err = write(controlPipe[1], &local_frame_obj.frame_id, sizeof(unsigned int));
+			if (err < 0){
+				perror("ERROR reading from pipe");
+				close(sockfd);
+				exit(1);
+			}
+			break;
+		}
 		
 		//receive capture time of frame on which server performed detection
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
@@ -227,7 +243,7 @@ void *recvrend(void *fd) {
 		//for each located object, receive one result_obj and store this in the result vector
 		for (size_t i = 0; i < n; ++i) {
 			result_obj obj;
-			err = read(sockfd, &obj.x, sizeof(unsigned int)); 
+/*			err = read(sockfd, &obj.x, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
 			err = read(sockfd, &obj.y, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
@@ -239,14 +255,14 @@ void *recvrend(void *fd) {
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
 			err = read(sockfd, &obj.obj_id, sizeof(unsigned int)); 
 			if(err<0) { perror("ERROR writing to socket"); close(sockfd); exit(1); }
-			
-		/*	err = read(sockfd,&obj,sizeof(result_obj));
+*/			
+			err = read(sockfd,&obj,sizeof(result_obj));
 			if (err < 0){ 
 				perror("ERROR reading from socket");
 				close(sockfd);
 				exit(1);
-		  	} */
- 			result_vec.push_back(obj); 
+		  	} 
+ 			result_vec.push_back(obj);
 		}
 		
 		//printf("read all objects done \n");
@@ -262,7 +278,7 @@ void *recvrend(void *fd) {
 		double time_spent = spent.count();
 		
 		// quick console output 
-		printf("R | id %d | correct model %d | used model %d | latency %f | det time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), local_frame_obj.detection_time.count(), n);
+		printf(" , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000, local_frame_obj.detection_time.count()*1000);
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -278,7 +294,7 @@ void *recvrend(void *fd) {
 			exit(1);
 		}
 		
-		//enable next line to use console output
+		//enable next line to use console output of object locations
 		//consoleOutput(local_frame_obj, result_vec, curr_frame_id);
 		
 		//enable next two lines to use image output and show the rendered frame with bounding boxes
@@ -296,25 +312,28 @@ void *capsend(void *fd) {
 	frame_obj local_frame_obj;
 	size_t buffer_size;
 	
+	vector<int> compression_params;
+    compression_params.push_back(IMWRITE_JPEG_QUALITY);
+    compression_params.push_back(80);
+	
 	pid_t pid = fork();
 	if(pid < 0){
 		perror("fork failed");
 		close(sockfd);
 		exit(1);
 	} else if (pid == 0) {
-		printf("child spawns\n");
 		if(shaping) {
 			execl("/bin/bash", "bash", "../simulation/shape.sh", shaping_input.c_str());
 		}
 		printf("child done\n");
 		exit(0);
 	} else {
-		printf("parent continues\n");
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
-			capture.read(local_frame_obj.frame);
-			if (local_frame_obj.frame.empty()) {
-				perror("ERROR no frame\n");
+			Mat frame;
+			capture.read(frame);
+			if (frame.empty()) {
+				//perror("ERROR no frame\n");
 				break;
 			}
 			local_frame_obj.start = std::chrono::system_clock::now();
@@ -323,7 +342,7 @@ void *capsend(void *fd) {
 			
 			//copy local frame into the global frame variable so it can be used for rendering of an image
 			pthread_mutex_lock(&frameMutex);
-			global_frame_obj = local_frame_obj;
+			global_frame_obj.frame = frame;
 			if (frame_counter == 1) {
 				pthread_cond_signal(&frameCond);
 			}
@@ -344,7 +363,7 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			}
-
+			
 			//read and send correct model value
 			pthread_mutex_lock(&modelMutex);
 			local_frame_obj.correct_model = curr_model;
@@ -356,10 +375,11 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-
+		
 			//resize and encode frame, send the size of the encoded frame so the server knows how much to read, and then send the data vector 
-			resize(local_frame_obj.frame, local_frame_obj.frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_AREA);
-			imencode(".jpg", local_frame_obj.frame, vec);
+			cvtColor(frame, frame, COLOR_BGR2GRAY);
+			resize(frame, frame, cv::Size(n_width[local_frame_obj.correct_model],n_height[local_frame_obj.correct_model]), 1, 1, cv::INTER_NEAREST);
+			imencode(".jpg", frame, vec, compression_params);
 			size_t n = vec.size();
 			
 			err = write(sockfd, &n, sizeof(size_t));
@@ -375,8 +395,7 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
-			//printf("S | id %d | correct model %d | vec size %zu\n", local_frame_obj.frame_id, local_frame_obj.correct_model, n);
-			
+						
 			//wait for ack of server that frame is received
 			err = read(sockfd, &buffer_size, sizeof(size_t));
 			if (err < 0){
@@ -384,6 +403,15 @@ void *capsend(void *fd) {
 				close(sockfd);
 				exit(1);
 			} 
+		}
+		//end of video 
+		//disconnect from server
+		unsigned int final_frame_signal = UINT_MAX;
+		err = write(sockfd, &final_frame_signal, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
 		}
 	}
 }
@@ -408,6 +436,10 @@ void *control(void *) {
 			perror("ERROR reading from pipe");
 			exit(1);
 		}
+		if(used_model == UINT_MAX){
+			break;
+		}
+		
 		err = read(controlPipe[0], &spent, sizeof(double));
 		if (err < 0){
 			perror("ERROR reading from pipe");
@@ -425,7 +457,7 @@ void *control(void *) {
 			pos = (pos + 1) % control_window;
 				
 			int total_on_time = count(control_buffer.begin(), control_buffer.end(), true);
-			if (total_on_time >= HIGH_ON_TIME) { //96% of frames on time
+			if (total_on_time >= high_on_time) { 
 				if (local_curr_model < MAX_MODEL) {
 					local_curr_model++;
 					control_buffer.clear();
@@ -436,7 +468,7 @@ void *control(void *) {
 					curr_model = local_curr_model; 
 					pthread_mutex_unlock(&modelMutex);
 				}
-			} else if (total_on_time <= LOW_ON_TIME) { //50% of frames on time
+			} else if (total_on_time <= low_on_time) { 
 				if(local_curr_model > MIN_MODEL) {
 					local_curr_model--;
 					control_buffer.clear();
@@ -455,8 +487,8 @@ void *control(void *) {
 }
 
 int main(int argc, char *argv[]) {
-	if(argc < 3){
-		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video].\n");
+	if(argc < 5){
+		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video] [low_on_time] [high_on_time]\n");
 		return 1;
 	}
 	
@@ -472,7 +504,7 @@ int main(int argc, char *argv[]) {
 		printf("shaping file : %s\n", shaping_input.c_str());
 	}
 	
-	if(argc == 5){	//use video file input, gstreamer to enforce realtime reading of frames
+	if(argc >= 5){	//use video file input, gstreamer to enforce realtime reading of frames
 		capture.open(argv[4],CAP_GSTREAMER);
 		if (!capture.isOpened()) {
 			perror("ERROR opening video\n");
@@ -485,6 +517,15 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 	}
+	
+	if(argc == 7){
+		low_on_time = atoi(argv[5]);
+		high_on_time = atoi(argv[6]);
+	} else { 
+		low_on_time = LOW_ON_TIME;
+		high_on_time = HIGH_ON_TIME;
+	}
+	
 	err = pipe(controlPipe);
 	if (err < 0){
 		perror("ERROR creating pipe");
@@ -495,11 +536,14 @@ int main(int argc, char *argv[]) {
 	
 	capture_frame_height = capture.get(CAP_PROP_FRAME_HEIGHT);
 	capture_frame_width = capture.get(CAP_PROP_FRAME_WIDTH);
-	printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
+	global_final_frame = -1;
 	
 	curr_model = STARTING_MODEL;
 	string names_file = "darknet/data/coco.names";
 	obj_names = objects_names_from_file(names_file);
+	
+	printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
+	printf("low_on_time = %d \t high_on_time = %d\n", low_on_time, high_on_time);
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_mutex_init(&modelMutex, NULL);
@@ -513,9 +557,19 @@ int main(int argc, char *argv[]) {
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
 	pthread_join(thread3, NULL);
-
+	
 	close(sockfd1);
 	close(sockfd2);
+	close(controlPipe[0]);
+	close(controlPipe[1]);
 	
+	pthread_mutex_destroy(&frameMutex);
+	pthread_mutex_destroy(&modelMutex);
+	pthread_cond_destroy(&frameCond);
+	
+	//wait for shaping to finish
+	sleep(8);
+	printf("\n client finished\n");
+		
 	return 0;
 }

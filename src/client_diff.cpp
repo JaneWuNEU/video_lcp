@@ -37,6 +37,12 @@ vector<string> obj_names;
 unsigned int curr_model;
 int capture_frame_height;
 int capture_frame_width;
+int global_final_frame;
+
+double down_sum; 
+double up_sum;  
+double late_exp; 
+double on_time_exp; 
 
 string shaping_input;
 bool shaping = true;
@@ -185,6 +191,16 @@ void *recvrend(void *fd) {
 			exit(1);
 		} 
 		
+		if(local_frame_obj.frame_id == UINT_MAX){
+			err = write(controlPipe[1], &local_frame_obj.frame_id, sizeof(unsigned int));
+			if (err < 0){
+				perror("ERROR reading from pipe");
+				close(sockfd);
+				exit(1);
+			}
+			break;
+		}
+		
 		//receive capture time of frame on which server performed detection
 		err = read(sockfd, &local_frame_obj.start, sizeof(std::chrono::system_clock::time_point));
 		if (err < 0){
@@ -261,10 +277,10 @@ void *recvrend(void *fd) {
 		//check how old frame is to see if it is past the deadline or not and write to pipe
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
-		double time_spent = spent.count() * 1000;
+		double time_spent = spent.count();
 		
 		// quick console output 
-		printf(" , , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent, local_frame_obj.detection_time.count());
+		printf(" , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000, local_frame_obj.detection_time.count()*1000);
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -308,20 +324,18 @@ void *capsend(void *fd) {
 		close(sockfd);
 		exit(1);
 	} else if (pid == 0) {
-		printf("child spawns\n");
 		if(shaping) {
 			execl("/bin/bash", "bash", "../simulation/shape.sh", shaping_input.c_str());
 		}
 		printf("child done\n");
 		exit(0);
 	} else {
-		printf("parent continues\n");
 		while(true) {
 			//capture frame into local frame object so capturing is not done within mutex
 			Mat frame;
 			capture.read(frame);
 			if (frame.empty()) {
-				perror("ERROR no frame\n");
+				//perror("ERROR no frame\n");
 				break;
 			}
 			local_frame_obj.start = std::chrono::system_clock::now();
@@ -392,6 +406,15 @@ void *capsend(void *fd) {
 				exit(1);
 			} 
 		}
+		//end of video 
+		//disconnect from server
+		unsigned int final_frame_signal = UINT_MAX;
+		err = write(sockfd, &final_frame_signal, sizeof(unsigned int));
+		if (err < 0){
+			perror("ERROR writing to socket");
+			close(sockfd);
+			exit(1);
+		}
 	}
 }
 
@@ -415,6 +438,10 @@ void *control(void *) {
 			perror("ERROR reading from pipe");
 			exit(1);
 		}
+		if(used_model == UINT_MAX){
+			break;
+		}
+		
 		err = read(controlPipe[0], &spent, sizeof(double));
 		if (err < 0){
 			perror("ERROR reading from pipe");
@@ -427,7 +454,7 @@ void *control(void *) {
 		
 		bool on_time = (spent <= FRAME_DEADLINE) ? true : false;
 		double diff = ((spent - FRAME_DEADLINE)*1000);
-		diff = on_time ? pow(diff,ON_TIME_EXP) : pow(diff,LATE_EXP);
+		diff = on_time ? -1*pow(abs(diff),on_time_exp) : pow(diff,late_exp);
 		
 		if (control_buffer.size() == control_window) { //control window full, start checking
 			control_buffer[pos] = diff;
@@ -438,23 +465,21 @@ void *control(void *) {
 
 		//int total_on_time = count(control_buffer.begin(), control_buffer.end(), true);
 		double sum = std::accumulate(control_buffer.begin(), control_buffer.end(), 0.0);
-		if (sum <= UP_SUM * CONTROL_WINDOW) { 
+		if (sum <= up_sum * CONTROL_WINDOW) { 
 			if (local_curr_model < MAX_MODEL) {
 				local_curr_model++;
 				control_buffer.clear();
 				pos = 0;
-				//printf("U | sum %f | new model %d\n", sum, local_curr_model);
 				
 				pthread_mutex_lock(&modelMutex);
 				curr_model = local_curr_model; 
 				pthread_mutex_unlock(&modelMutex);
 			}
-		} else if (sum >= DOWN_SUM * CONTROL_WINDOW) { 
+		} else if (sum >= down_sum * CONTROL_WINDOW) { 
 			if(local_curr_model > MIN_MODEL) {
 				local_curr_model--;
 				control_buffer.clear();
 				pos = 0;
-				//printf("U | sum %f | new model %d\n", sum, local_curr_model);
 				
 				pthread_mutex_lock(&modelMutex);
 				curr_model = local_curr_model; 
@@ -466,7 +491,7 @@ void *control(void *) {
 
 int main(int argc, char *argv[]) {
 	if(argc < 3){
-		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video].\n");
+		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video] [down_sum] [late_exp] [up_sum] [on_time_exp].\n");
 		return 1;
 	}
 	
@@ -482,7 +507,7 @@ int main(int argc, char *argv[]) {
 		printf("shaping file : %s\n", shaping_input.c_str());
 	}
 	
-	if(argc == 5){	//use video file input, gstreamer to enforce realtime reading of frames
+	if(argc >= 5){	//use video file input, gstreamer to enforce realtime reading of frames
 		capture.open(argv[4],CAP_GSTREAMER);
 		if (!capture.isOpened()) {
 			perror("ERROR opening video\n");
@@ -495,6 +520,19 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 	}
+	
+	if(argc == 9){
+		down_sum = atof(argv[5]);
+		late_exp = atof(argv[6]); 
+		up_sum = atof(argv[7]);  
+		on_time_exp = atof(argv[8]);  
+	} else { 
+		down_sum = DOWN_SUM; 
+		up_sum = UP_SUM;
+		late_exp = LATE_EXP; 
+		on_time_exp = ON_TIME_EXP;
+	}
+	
 	err = pipe(controlPipe);
 	if (err < 0){
 		perror("ERROR creating pipe");
@@ -505,11 +543,14 @@ int main(int argc, char *argv[]) {
 	
 	capture_frame_height = capture.get(CAP_PROP_FRAME_HEIGHT);
 	capture_frame_width = capture.get(CAP_PROP_FRAME_WIDTH);
-	printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
+	global_final_frame = -1;
 	
 	curr_model = STARTING_MODEL;
 	string names_file = "darknet/data/coco.names";
 	obj_names = objects_names_from_file(names_file);
+	
+	printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
+	printf("down_sum = %f \t late_exp = %f \t up_sum = %f \t on_time_exp = %f\n", down_sum, late_exp, up_sum, on_time_exp);
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_mutex_init(&modelMutex, NULL);
@@ -523,9 +564,19 @@ int main(int argc, char *argv[]) {
 	pthread_join(thread1, NULL);
 	pthread_join(thread2, NULL);
 	pthread_join(thread3, NULL);
-
+	
 	close(sockfd1);
 	close(sockfd2);
+	close(controlPipe[0]);
+	close(controlPipe[1]);
 	
+	pthread_mutex_destroy(&frameMutex);
+	pthread_mutex_destroy(&modelMutex);
+	pthread_cond_destroy(&frameCond);
+	
+	//wait for shaping to finish
+	sleep(8);
+	printf("\n client finished\n");
+		
 	return 0;
 }

@@ -4,8 +4,8 @@ export LC_NUMERIC=en_US.UTF-8
 input_file=$1
 mapfile -t list < $input_file
 
-#tc_adapter=wlp59s0 #wifi
-tc_adapter=enx106530c1958e #eth
+tc_adapter=wlp59s0 #wifi
+#tc_adapter=enx106530c1958e #eth
 #tc_adapter=eno1 #server eth
 
 
@@ -35,27 +35,27 @@ do
 	
 	#date +"B | %H:%M:%S.%N | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	duration=$SECONDS
-	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
 	t=$(sleepenh $t 1)
 	
 	duration=$SECONDS
-	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
 	t=$(sleepenh $t 1)
 
 	duration=$SECONDS
-	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
 	t=$(sleepenh $t 1)
 	
 	duration=$SECONDS
-	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
 	t=$(sleepenh $t 1)
 	
 	duration=$SECONDS
-	echo "$(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))), $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
 	t=$(sleepenh $t 1)
 	
 #	duration=$SECONDS
-#	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
+#	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']})"
 #	t=$(sleepenh $t 1)
 	
 #	duration=$SECONDS
