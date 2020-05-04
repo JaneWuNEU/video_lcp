@@ -37,7 +37,6 @@ vector<string> obj_names;
 unsigned int curr_model;
 int capture_frame_height;
 int capture_frame_width;
-int global_final_frame;
 
 double down_sum; 
 double up_sum;  
@@ -108,7 +107,7 @@ vector<string> objects_names_from_file(string const filename) {
     vector<string> file_lines;
     if (!file.is_open()) return file_lines;
     for(string line; getline(file, line);) file_lines.push_back(line);
-    cout << "object names loaded \n";
+    //cout << "object names loaded \n";
     return file_lines;
 }
 
@@ -281,7 +280,8 @@ void *recvrend(void *fd) {
 		double time_spent = spent.count() ;
 		
 		// quick console output 
-		printf(" , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000, local_frame_obj.detection_time.count()*1000);
+		//printf(" , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000, local_frame_obj.detection_time.count()*1000);
+		cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 << ", " << local_frame_obj.detection_time.count()*1000 << "\n";
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -328,7 +328,7 @@ void *capsend(void *fd) {
 		if(shaping) {
 			execl("/bin/bash", "bash", "../simulation/shape.sh", shaping_input.c_str());
 		}
-		printf("child done\n");
+		//printf("child done\n");
 		exit(0);
 	} else {
 		while(true) {
@@ -506,11 +506,11 @@ int main(int argc, char *argv[]) {
 	connect_to_server(sockfd1, sockfd2, argv);
 	
 	if(strcmp(argv[3], "0") == 0){
-		printf("no shaping\n");
+		//printf("no shaping\n");
 		shaping = false;
 	} else {
 		shaping_input = argv[3];
-		printf("shaping file : %s\n", shaping_input.c_str());
+		//printf("shaping file : %s\n", shaping_input.c_str());
 	}
 	
 	if(argc >= 5){	//use video file input, gstreamer to enforce realtime reading of frames
@@ -530,7 +530,7 @@ int main(int argc, char *argv[]) {
 	if(argc == 10){
 		down_sum = atof(argv[5]);
 		late_exp = atof(argv[6]); 
-		up_sum = atof(argv[7]);  
+		up_sum = -1*atof(argv[7]);  
 		on_time_exp = atof(argv[8]);  
 		history_weight = atof(argv[9]);
 	} else { 
@@ -551,14 +551,15 @@ int main(int argc, char *argv[]) {
 	
 	capture_frame_height = capture.get(CAP_PROP_FRAME_HEIGHT);
 	capture_frame_width = capture.get(CAP_PROP_FRAME_WIDTH);
-	global_final_frame = -1;
+	
+	std::cout.setf(std::ios::unitbuf);
 	
 	curr_model = STARTING_MODEL;
 	string names_file = "darknet/data/coco.names";
 	obj_names = objects_names_from_file(names_file);
 	
-	printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
-	printf("down_sum = %f \t late_exp = %f \t up_sum = %f \t on_time_exp = %f \t history_weight = %f \n", down_sum, late_exp, up_sum, on_time_exp, history_weight);
+	//printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
+	//printf("down_sum = %f \t late_exp = %f \t up_sum = %f \t on_time_exp = %f \t history_weight = %f \n", down_sum, late_exp, up_sum, on_time_exp, history_weight);
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_mutex_init(&modelMutex, NULL);
@@ -584,7 +585,7 @@ int main(int argc, char *argv[]) {
 	
 	//wait for shaping to finish
 	sleep(8);
-	printf("\n client finished\n");
+	//printf("\n client finished\n");
 		
 	return 0;
 }

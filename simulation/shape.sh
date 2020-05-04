@@ -75,5 +75,5 @@ do
 #	t=$(sleepenh $t 1)
 done
 
-echo "shaping completed, removing qdisc"
+#echo "shaping completed, removing qdisc"
 sudo tc qdisc del dev $tc_adapter root

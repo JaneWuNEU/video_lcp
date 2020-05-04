@@ -433,11 +433,20 @@ int main(int argc, char *argv[]) {
 		pthread_join(thread2, NULL);
 		pthread_join(thread3, NULL);
 		
-		for(int i=0; i<MAX_MODEL; i++){
-			delete detectors[i];
+		printf("all threads done\n");
+
+		//for(int i=0; i<MAX_MODEL; i++){
+		//	delete detectors[i];
+		//}
+	
+		if(curr_model!=MIN_MODEL){
+			delete detectors[curr_model-1];;
+		}
+		delete detectors[curr_model];
+		if(curr_model!=MAX_MODEL){
+			delete detectors[curr_model+1];
 		}
 		
-		printf("all threads done\n");
 
 		close(newsockfd1);
 		close(newsockfd2);
