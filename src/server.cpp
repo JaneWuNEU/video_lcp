@@ -385,7 +385,7 @@ void *recvFrame(void *fd) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc != 2){
+	if (argc < 2){
 		perror("Usage: ./serv [port number].\n");
 		return 1;
 	}
@@ -395,7 +395,11 @@ int main(int argc, char *argv[]) {
 	printf("server created\n");
 	
 	while(true){
-		curr_model = STARTING_MODEL;
+		if(argc == 3){
+			curr_model = atoi(argv[2]);
+		} else {
+			curr_model = STARTING_MODEL;
+		}
 		
 		if(curr_model!=MIN_MODEL){
 			detectors[curr_model-1] = new Detector(cfg_files[curr_model-1],weights_file);
@@ -435,10 +439,6 @@ int main(int argc, char *argv[]) {
 		
 		printf("all threads done\n");
 
-		//for(int i=0; i<MAX_MODEL; i++){
-		//	delete detectors[i];
-		//}
-	
 		if(curr_model!=MIN_MODEL){
 			delete detectors[curr_model-1];;
 		}
