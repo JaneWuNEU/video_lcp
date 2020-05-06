@@ -87,7 +87,7 @@ void *updateDetectionModel(void *) {
 	int err;
 	unsigned int new_model;
 	//local bool used since this is the only thread that modifies the global version, which allows for reading without lock
-	int local_detector = STARTING_MODEL;
+	int local_detector = curr_model;
 	bool detector_ready[19] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
 	if(local_detector!=MIN_MODEL){
 		detector_ready[local_detector-1] = true;
