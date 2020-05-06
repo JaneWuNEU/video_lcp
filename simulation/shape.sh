@@ -15,7 +15,7 @@ sudo tc qdisc del dev $tc_adapter root
 #sudo tc qdisc add dev $tc_adapter root handle 1: htb default 11
 #sudo tc class add dev $tc_adapter parent 1: classid 1:11 htb rate 10mbit
 
-sudo tc qdisc add dev $tc_adapter root tbf rate 10mbit latency 15ms burst 3000
+sudo tc qdisc add dev $tc_adapter root tbf rate 10mbit latency 25ms burst 3000
 
 #iperf3 -c netmsys.org -p 10001 -t 1000 &
 #iperf3 -c fs0.das5.cs.vu.nl -p 10004 -t 1000 &
@@ -31,7 +31,7 @@ do
 	fi
 	
 	#sudo tc class change dev $tc_adapter parent 1: classid 1:11 htb rate "${item//[$'\t\r\n ']}"mbit
-	sudo tc qdisc change dev $tc_adapter root tbf rate "${item//[$'\t\r\n ']}"mbit latency 15ms burst 3000
+	sudo tc qdisc change dev $tc_adapter root tbf rate "${item//[$'\t\r\n ']}"mbit latency 25ms burst 3000
 	
 	#date +"B | %H:%M:%S.%N | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 	duration=$SECONDS

@@ -42,6 +42,7 @@ double down_sum;
 double up_sum;  
 double late_exp; 
 double on_time_exp; 
+double history_weight;
 
 string shaping_input;
 bool shaping = true;
@@ -276,7 +277,7 @@ void *recvrend(void *fd) {
 		//check how old frame is to see if it is past the deadline or not and write to pipe
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
-		double time_spent = spent.count();
+		double time_spent = spent.count() ;
 		
 		// quick console output 
 		//printf(" , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000, local_frame_obj.detection_time.count()*1000);
@@ -432,6 +433,8 @@ void *control(void *) {
 	int on_time_count = 0;
 	int late_count = 0;
 	
+	double score = 0.0;
+	
 	while(true) {
 		err = read(controlPipe[0], &used_model, sizeof(unsigned int));
 		if (err < 0){
@@ -465,7 +468,10 @@ void *control(void *) {
 
 		//int total_on_time = count(control_buffer.begin(), control_buffer.end(), true);
 		double sum = std::accumulate(control_buffer.begin(), control_buffer.end(), 0.0);
-		if (sum <= up_sum * CONTROL_WINDOW) { 
+		
+		score = (score * history_weight) + ((1.0-history_weight) * sum);
+		
+		if (score <= up_sum * CONTROL_WINDOW) { 
 			if (local_curr_model < MAX_MODEL) {
 				local_curr_model++;
 				control_buffer.clear();
@@ -475,7 +481,7 @@ void *control(void *) {
 				curr_model = local_curr_model; 
 				pthread_mutex_unlock(&modelMutex);
 			}
-		} else if (sum >= down_sum * CONTROL_WINDOW) { 
+		} else if (score >= down_sum * CONTROL_WINDOW) { 
 			if(local_curr_model > MIN_MODEL) {
 				local_curr_model--;
 				control_buffer.clear();
@@ -491,7 +497,7 @@ void *control(void *) {
 
 int main(int argc, char *argv[]) {
 	if(argc < 3){
-		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video] [down_sum] [late_exp] [up_sum] [on_time_exp].\n");
+		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video] [down_sum] [late_exp] [up_sum] [on_time_exp] [history_weight].\n");
 		return 1;
 	}
 	
@@ -521,7 +527,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	
-	if(argc == 9){
+	if(argc >= 9){
 		down_sum = atof(argv[5]);
 		late_exp = atof(argv[6]); 
 		up_sum = -1*atof(argv[7]);  
@@ -530,7 +536,19 @@ int main(int argc, char *argv[]) {
 		down_sum = DOWN_SUM; 
 		up_sum = UP_SUM;
 		late_exp = LATE_EXP; 
-		on_time_exp = ON_TIME_EXP;
+		on_time_exp = ON_TIME_EXP;	
+	}
+	
+	if(argc >= 10){
+		history_weight = atof(argv[9]);
+	} else {
+		history_weight = HISTORY_WEIGHT;
+	}
+	
+	if(argc == 11){
+		curr_model = atoi(argv[10]);
+	} else {
+		curr_model = STARTING_MODEL;
 	}
 	
 	err = pipe(controlPipe);
@@ -546,12 +564,12 @@ int main(int argc, char *argv[]) {
 	
 	std::cout.setf(std::ios::unitbuf);
 	
-	curr_model = STARTING_MODEL;
+	
 	string names_file = "darknet/data/coco.names";
 	obj_names = objects_names_from_file(names_file);
 	
 	//printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
-	//printf("down_sum = %f \t late_exp = %f \t up_sum = %f \t on_time_exp = %f\n", down_sum, late_exp, up_sum, on_time_exp);
+	//printf("down_sum = %f \t late_exp = %f \t up_sum = %f \t on_time_exp = %f \t history_weight = %f \n", down_sum, late_exp, up_sum, on_time_exp, history_weight);
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_mutex_init(&modelMutex, NULL);
