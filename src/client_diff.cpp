@@ -424,8 +424,11 @@ void *control(void *) {
 	int err;
 	double spent;
 	unsigned int used_model;
-	unsigned int local_curr_model = STARTING_MODEL;
 	
+	pthread_mutex_lock(&modelMutex);
+	unsigned int local_curr_model = curr_model;
+	pthread_mutex_unlock(&modelMutex);
+		
 	vector<double> control_buffer;
 	int pos = 0;
 	int control_window = CONTROL_WINDOW;
