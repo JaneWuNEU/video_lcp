@@ -526,29 +526,29 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 	}
-	
-	if(argc >= 9){
-		down_sum = atof(argv[5]);
-		late_exp = atof(argv[6]); 
-		up_sum = -1*atof(argv[7]);  
-		on_time_exp = atof(argv[8]);  
-	} else { 
-		down_sum = DOWN_SUM; 
-		up_sum = UP_SUM;
-		late_exp = LATE_EXP; 
-		on_time_exp = ON_TIME_EXP;	
+
+	if(argc >= 6){
+		curr_model = atoi(argv[5]);
+	} else {
+		curr_model = STARTING_MODEL;
 	}
 	
 	if(argc >= 10){
-		history_weight = atof(argv[9]);
-	} else {
-		history_weight = HISTORY_WEIGHT;
+		down_sum = atof(argv[6]);
+		late_exp = atof(argv[7]); 
+		up_sum = -1*atof(argv[8]);  
+		on_time_exp = atof(argv[9]);  
+	} else { 
+		down_sum = DOWN_SUM; 
+		late_exp = LATE_EXP; 
+		up_sum = -1*UP_SUM;
+		on_time_exp = ON_TIME_EXP;	
 	}
 	
-	if(argc == 11){
-		curr_model = atoi(argv[10]);
+	if(argc >= 11){
+		history_weight = atof(argv[10]);
 	} else {
-		curr_model = STARTING_MODEL;
+		history_weight = HISTORY_WEIGHT;
 	}
 	
 	err = pipe(controlPipe);

@@ -10,7 +10,7 @@
 #define HIGH_ON_TIME 50 // switch up if more or equal to X are on time 
 
 #define DOWN_SUM 5 //switch down when average latency score is 5ms late 
-#define UP_SUM -10 //switch up when average latency score is 10ms early 
+#define UP_SUM 10 //switch up when average latency score is 10ms early 
 #define LATE_EXP 1.5 //score exponent for late latency
 #define ON_TIME_EXP 1.0 //score exponent for early latency 
 
