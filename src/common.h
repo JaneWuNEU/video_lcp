@@ -14,7 +14,7 @@
 #define LATE_EXP 1.5 //score exponent for late latency
 #define ON_TIME_EXP 1.0 //score exponent for early latency 
 
-#define HISTORY_WEIGHT 1.0/1 // weight for the history  		Normal weight = (1-History weight)
+#define HISTORY_WEIGHT 0.0 //1.0/4 // weight for the history  		Normal weight = (1-History weight)
 
 
 // object that is returned by the server in which information on a detected object is stored
