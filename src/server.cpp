@@ -396,7 +396,9 @@ int main(int argc, char *argv[]) {
 	
 	while(true){
 		if(argc == 3){
-			curr_model = atoi(argv[2]);
+			printf("please provide starting model\n");
+			curr_model = cin.get() - 48;
+			printf("%d starting model\n",curr_model);
 		} else {
 			curr_model = STARTING_MODEL;
 		}
