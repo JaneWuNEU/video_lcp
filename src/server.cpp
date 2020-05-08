@@ -178,13 +178,13 @@ void *getSendResult(void *fd) {
 		local_frame_obj.used_model = curr_model;
 		pthread_mutex_unlock(&detectorMutex);
 		
-		auto start = std::chrono::system_clock::now();
+		//auto start = std::chrono::system_clock::now();
 		
 		local_result_vec = detectors[local_frame_obj.used_model]->detect(local_frame_obj.frame);
 
 		//temporary timing to see how old the frame is after object detection
-		auto end = std::chrono::system_clock::now();
-		std::chrono::duration<double> spent = end - start;
+		//auto end = std::chrono::system_clock::now();
+		//std::chrono::duration<double> spent = end - start;
 		
 		//send the frame id of the frame on which object detection is performed
 		err = write(sockfd, &local_frame_obj.frame_id, sizeof(unsigned int));
@@ -203,12 +203,14 @@ void *getSendResult(void *fd) {
 		}
 
 		//send detection time 
+		/*
 		err = write(sockfd, &spent, sizeof(std::chrono::duration<double>));
 		if (err < 0){
 			perror("ERROR writing to socket");
 			close(sockfd);
 			exit(1);
 		}
+		*/
 		
 		//send correct model value 
 		err = write(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));

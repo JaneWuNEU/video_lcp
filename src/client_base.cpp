@@ -38,8 +38,9 @@ unsigned int curr_model;
 int capture_frame_height;
 int capture_frame_width;
 
-int low_on_time;
-int high_on_time;
+double down; 
+double up;  
+int switching;
 
 string shaping_input;
 bool shaping = true;
@@ -207,14 +208,12 @@ void *recvrend(void *fd) {
 		} 
 		
 		//receive detection time of frame on which server performed detection
-		/*
 		err = read(sockfd, &local_frame_obj.detection_time, sizeof(std::chrono::duration<double>));
 		if (err < 0){
 			perror("ERROR reading socket");
 			close(sockfd);
 			exit(1);
-		}
-		*/		
+		} 
 		
 		//receive correct model value
 		err = read(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
@@ -276,12 +275,11 @@ void *recvrend(void *fd) {
 		//check how old frame is to see if it is past the deadline or not and write to pipe
 		auto end = std::chrono::system_clock::now();
 		std::chrono::duration<double> spent = end - local_frame_obj.start;
-		double time_spent = spent.count();
+		double time_spent = spent.count() ;
 		
 		// quick console output 
 		//printf(" , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000, local_frame_obj.detection_time.count()*1000);
-		//cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 << ", " << local_frame_obj.detection_time.count()*1000 << "\n";
-		cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 <<  "\n";
+		cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 << ", " << local_frame_obj.detection_time.count()*1000 << "\n";
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -424,15 +422,11 @@ void *control(void *) {
 	int err;
 	double spent;
 	unsigned int used_model;
-	unsigned int local_curr_model = STARTING_MODEL;
 	
-	vector<bool> control_buffer;
-	int pos = 0;
-	int control_window = CONTROL_WINDOW;
-	
-	int on_time_count = 0;
-	int late_count = 0;
-	
+	pthread_mutex_lock(&modelMutex);
+	unsigned int local_curr_model = curr_model;
+	pthread_mutex_unlock(&modelMutex);
+		
 	while(true) {
 		err = read(controlPipe[0], &used_model, sizeof(unsigned int));
 		if (err < 0){
@@ -453,45 +447,40 @@ void *control(void *) {
 			continue;
 		}
 		
-		bool on_time = (spent <= FRAME_DEADLINE) ? true : false;
+		if (switching == 0) { // no switching
+			continue;
+		}
 		
-		if (control_buffer.size() == control_window) { //control window full, start checking
-			control_buffer[pos] = on_time;
-			pos = (pos + 1) % control_window;
+		bool on_time = (spent <= FRAME_DEADLINE) ? true : false;
+		double diff = ((spent - FRAME_DEADLINE)*1000);
 				
-			int total_on_time = count(control_buffer.begin(), control_buffer.end(), true);
-			if (total_on_time >= high_on_time) { 
+		if(on_time) {
+			if (diff <= up) { 
 				if (local_curr_model < MAX_MODEL) {
 					local_curr_model++;
-					control_buffer.clear();
-					pos = 0;
-					//printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
 					
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
 					pthread_mutex_unlock(&modelMutex);
-				}
-			} else if (total_on_time <= low_on_time) { 
+				}	
+			}
+		}else if(!on_time){
+			if (diff >= down) { 
 				if(local_curr_model > MIN_MODEL) {
 					local_curr_model--;
-					control_buffer.clear();
-					pos = 0;
-					//printf("U | on time %d | new model %d\n", total_on_time, local_curr_model);
-					
+
 					pthread_mutex_lock(&modelMutex);
 					curr_model = local_curr_model; 
 					pthread_mutex_unlock(&modelMutex);
 				}
 			}
-		} else {	//control window not full yet, wait till its full
-			control_buffer.push_back(on_time);
 		}
-	}
+	} 
 }
 
 int main(int argc, char *argv[]) {
-	if(argc < 5){
-		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video] [low_on_time] [high_on_time]\n");
+	if(argc < 3){
+		perror("Usage: ./client [server_hostname] [server_port_number] [network_shaping_file (0 to run without shaping)] [(optional)path_to_video] [down_sum] [late_exp] [up_sum] [on_time_exp] [history_weight].\n");
 		return 1;
 	}
 	
@@ -520,13 +509,25 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 	}
+
+	if(argc >= 6){
+		curr_model = atoi(argv[5]);
+	} else {
+		curr_model = STARTING_MODEL;
+	}
 	
-	if(argc == 7){
-		low_on_time = atoi(argv[5]);
-		high_on_time = atoi(argv[6]);
+	if(argc >= 7){
+		switching = atoi(argv[6]);
+	} else {
+		switching = 0; //off
+	}
+	
+	if(argc >= 9){
+		down = atof(argv[7]);
+		up = -1*atof(argv[8]);  
 	} else { 
-		low_on_time = LOW_ON_TIME;
-		high_on_time = HIGH_ON_TIME;
+		down = DOWN_SUM; 
+		up = -1*UP_SUM;
 	}
 	
 	err = pipe(controlPipe);
@@ -542,12 +543,12 @@ int main(int argc, char *argv[]) {
 	
 	std::cout.setf(std::ios::unitbuf);
 	
-	curr_model = STARTING_MODEL;
+	
 	string names_file = "darknet/data/coco.names";
 	obj_names = objects_names_from_file(names_file);
 	
 	//printf("input frame size : height: %d, width: %d\n", capture_frame_height, capture_frame_width);
-	//printf("low_on_time = %d \t high_on_time = %d\n", low_on_time, high_on_time);
+	//printf("down_sum = %f \t late_exp = %f \t up_sum = %f \t on_time_exp = %f \t history_weight = %f \n", down_sum, late_exp, up_sum, on_time_exp, history_weight);
 	
 	pthread_mutex_init(&frameMutex, NULL);
 	pthread_mutex_init(&modelMutex, NULL);

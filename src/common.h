@@ -9,9 +9,9 @@
 #define LOW_ON_TIME 35 // switch down if less or equal to X are on time
 #define HIGH_ON_TIME 50 // switch up if more or equal to X are on time 
 
-#define DOWN_SUM 5 //switch down when average latency score is 5ms late 
-#define UP_SUM 10 //switch up when average latency score is 10ms early 
-#define LATE_EXP 1.5 //score exponent for late latency
+#define DOWN_SUM 2.5 //switch down when average latency score is 5ms late 
+#define UP_SUM 5 //switch up when average latency score is 10ms early 
+#define LATE_EXP 1.25 //score exponent for late latency
 #define ON_TIME_EXP 1.0 //score exponent for early latency 
 
 #define HISTORY_WEIGHT 0.0 //1.0/4 // weight for the history  		Normal weight = (1-History weight)

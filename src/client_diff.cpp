@@ -210,12 +210,14 @@ void *recvrend(void *fd) {
 		} 
 		
 		//receive detection time of frame on which server performed detection
+		/*
 		err = read(sockfd, &local_frame_obj.detection_time, sizeof(std::chrono::duration<double>));
 		if (err < 0){
 			perror("ERROR reading socket");
 			close(sockfd);
 			exit(1);
 		} 
+		*/
 		
 		//receive correct model value
 		err = read(sockfd, &local_frame_obj.correct_model, sizeof(unsigned int));
@@ -281,7 +283,8 @@ void *recvrend(void *fd) {
 		
 		// quick console output 
 		//printf(" , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000, local_frame_obj.detection_time.count()*1000);
-		cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 << ", " << local_frame_obj.detection_time.count()*1000 << "\n";
+		//cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 << ", " << local_frame_obj.detection_time.count()*1000 << "\n";
+		cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 <<  "\n";
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
