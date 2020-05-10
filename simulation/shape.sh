@@ -4,8 +4,8 @@ export LC_NUMERIC=en_US.UTF-8
 input_file=$1
 mapfile -t list < $input_file
 
-tc_adapter=wlp59s0 #wifi
-#tc_adapter=enx106530c1958e #eth
+#tc_adapter=wlp59s0 #wifi
+tc_adapter=enx106530c1958e #eth
 #tc_adapter=eno1 #server eth
 
 
@@ -38,21 +38,21 @@ do
 	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
 	t=$(sleepenh $t 1)
 	
-	duration=$SECONDS
-	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
+#	t=$(sleepenh $t 1)
 
-	duration=$SECONDS
-	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
+#	t=$(sleepenh $t 1)
 	
-	duration=$SECONDS
-	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
+#	t=$(sleepenh $t 1)
 	
-	duration=$SECONDS
-	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
-	t=$(sleepenh $t 1)
+#	duration=$SECONDS
+#	echo -n "$(printf "%.3f" ${item//[$'\t\r\n ']})"
+#	t=$(sleepenh $t 1)
 	
 #	duration=$SECONDS
 #	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']})"
@@ -74,6 +74,8 @@ do
 #	echo "B | $(printf "%.2d" $(($duration / 60))):$(printf "%.2d" $(($duration % 60))) | $(printf "%.3f" ${item//[$'\t\r\n ']}) mbit"
 #	t=$(sleepenh $t 1)
 done
+
+t=$(sleepenh $t 3)
 
 #echo "shaping completed, removing qdisc"
 sudo tc qdisc del dev $tc_adapter root
