@@ -29,6 +29,8 @@ using namespace cv;
 using namespace std;
 
 Detector* detectors[MAX_MODEL+1];
+bool detector_ready[19] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+	
 
 vector<frame_obj> frame_buffer;
 vector<string> obj_names;
@@ -92,15 +94,7 @@ void *updateDetectionModel(void *) {
 	int local_detector = curr_model;
 	pthread_mutex_unlock(&detectorMutex);
 	
-	bool detector_ready[19] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
-	if(local_detector!=MIN_MODEL){
-		detector_ready[local_detector-1] = true;
-	}
-	detector_ready[local_detector] = true;
-	if(local_detector!=MAX_MODEL){
-		detector_ready[local_detector+1] = true;
-	}
-	
+
 	while (true) {
 		//read from sock to receive message from client
 		err = read(modelPipe[0], &new_model, sizeof(unsigned int));
@@ -413,10 +407,13 @@ int main(int argc, char *argv[]) {
 		
 		if(curr_model!=MIN_MODEL){
 			detectors[curr_model-1] = new Detector(cfg_files[curr_model-1],weights_file);
+			detector_ready[curr_model-1] = true;
 		}
 		detectors[curr_model] = new Detector(cfg_files[curr_model],weights_file);
+		detector_ready[curr_model] = true;
 		if(curr_model!=MAX_MODEL){
 			detectors[curr_model+1] = new Detector(cfg_files[curr_model+1],weights_file);
+			detector_ready[curr_model+1] = true;
 		}
 		obj_names = objects_names_from_file(names_file);
 		
@@ -449,13 +446,21 @@ int main(int argc, char *argv[]) {
 		
 		printf("all threads done\n");
 
-		if(curr_model!=MIN_MODEL){
-			delete detectors[curr_model-1];;
+
+		for(int i=MIN_MODEL; i<=MAX_MODEL; i++){
+			if(detector_ready[i]){
+				delete detectors[i];
+				detector_ready[i]=false;
+			}
+		}
+
+		/*if(curr_model!=MIN_MODEL){
+			delete detectors[curr_model-1];
 		}
 		delete detectors[curr_model];
 		if(curr_model!=MAX_MODEL){
 			delete detectors[curr_model+1];
-		}
+		} */
 		
 
 		close(newsockfd1);
