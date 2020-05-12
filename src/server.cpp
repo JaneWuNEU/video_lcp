@@ -261,6 +261,7 @@ void *getSendResult(void *fd) {
 				exit(1);
 			}
 		}
+		
 		//printf("S | id %d | correct model %d | used model %d | detection time %f | objects %zu \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, spent.count(), n);
 		//printf("%d : written all objects\n", local_frame_obj.frame_id);
 	}
@@ -394,12 +395,9 @@ int main(int argc, char *argv[]) {
 	create_listen_socket(sockfd, argv);
 	printf("server created\n");
 	
-	while(true){
+	//while(true){
 		if(argc == 3){
-			printf("please provide starting model\n");
-			string model;
-			cin >> model;
-			curr_model = stoi(model);
+			curr_model = stoi(argv[2]);
 			printf("%d starting model\n",curr_model);
 		} else {
 			curr_model = STARTING_MODEL;
@@ -471,7 +469,7 @@ int main(int argc, char *argv[]) {
 		pthread_mutex_destroy(&bufferMutex);
 		pthread_mutex_destroy(&detectorMutex);
 		pthread_cond_destroy(&bufferCond);
-	}	
+	//}	
 	
 	close(sockfd);
 	return 0;

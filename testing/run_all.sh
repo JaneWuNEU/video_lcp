@@ -9,7 +9,8 @@ do
 				for on_time_exp in 1.0 1.125 1.25 
 				do
 					echo ${down_sum}-${late_exp}_${up_sum}-${on_time_exp}_${history}
-					sudo ../build/client_diff localhost 10001 ../simulation/wifi_walking2.txt /home/vsa/video_lcp/videos/intersection_10m.mp4 0 $down_sum $late_exp $up_sum $on_time_exp $history > ${down_sum}-${late_exp}_${up_sum}-${on_time_exp}_${history}.txt
+					sudo ../build/client_diff localhost 10001 ../simulation/wifi/wifi_walking_half.txt ../videos/intersection_5m.mp4 0 $down_sum $late_exp $up_sum $on_time_exp $history > ${down_sum}-${late_exp}_${up_sum}-${on_time_exp}_${history}.txt
+
 				done 
 			done
 		done
