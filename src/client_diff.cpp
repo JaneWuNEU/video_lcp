@@ -284,7 +284,9 @@ void *recvrend(void *fd) {
 		// quick console output 
 		//printf(" , %d, %d, %d, %f, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000, local_frame_obj.detection_time.count()*1000);
 		//cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 << ", " << local_frame_obj.detection_time.count()*1000 << "\n";
-		cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 <<  "\n";
+		
+		//printf(" , %d, %d, %d, %f \n", local_frame_obj.frame_id, local_frame_obj.correct_model, local_frame_obj.used_model, time_spent*1000);
+		cout << " , " << local_frame_obj.frame_id << ", " << local_frame_obj.correct_model << ", " << local_frame_obj.used_model << ", " << time_spent*1000 <<  endl;
 		
 		//write used model and time spent to control thread
 		err = write(controlPipe[1], &local_frame_obj.used_model, sizeof(unsigned int));
@@ -568,7 +570,7 @@ int main(int argc, char *argv[]) {
 	capture_frame_height = capture.get(CAP_PROP_FRAME_HEIGHT);
 	capture_frame_width = capture.get(CAP_PROP_FRAME_WIDTH);
 	
-	std::cout.setf(std::ios::unitbuf);
+	std::cout.unsetf(std::ios_base::unitbuf);
 	
 	
 	string names_file = "darknet/data/coco.names";
@@ -600,7 +602,7 @@ int main(int argc, char *argv[]) {
 	pthread_cond_destroy(&frameCond);
 	
 	//wait for shaping to finish
-	sleep(8);
+	sleep(10);
 	//printf("\n client finished\n");
 		
 	return 0;
