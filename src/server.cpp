@@ -55,6 +55,9 @@ void create_listen_socket(int &sockfd, char *argv[]) {
 		close(sockfd);
 		exit(1);
 	}
+	
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+    error("setsockopt(SO_REUSEADDR) failed");
 
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_port = htons(atoi(argv[1]));
