@@ -32,6 +32,9 @@ struct frame_obj {
 	unsigned int correct_model;
 	unsigned int used_model;
 	cv::Mat frame;
+	double time_till_send;
+	double time_after_send;
+	
 };
 
 const unsigned int n_height[19] = {64,96,128,160,192,224,256,288,320,352,384,416,448,480,512,544,576,608,640};
